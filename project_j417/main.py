@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pymongo import MongoClient
+from pymongo.errors import PyMongoError
 
 load_dotenv()
 
@@ -41,9 +42,16 @@ def to_oid(item_id: str) -> ObjectId:
         raise HTTPException(status_code=400, detail="Invalid id")
 
 
+def ping_mongodb():
+    return client.admin.command("ping")
+
+
 @app.get("/health")
 def health():
-    client.admin.command("ping")
+    try:
+        ping_mongodb()
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="MongoDB unavailable") from exc
     return {"status": "ok"}
 
 
