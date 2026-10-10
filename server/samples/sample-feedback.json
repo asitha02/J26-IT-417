@@ -1,0 +1,34 @@
+{
+  "video": {
+    "videoId": "demo-podcast-01",
+    "title": "Intro to Machine Learning (Podcast Ep. 1)",
+    "durationSec": 1200,
+    "topics": [
+      { "name": "What is machine learning", "startSec": 0, "endSec": 300, "keywords": ["machine", "learning", "ai"] },
+      { "name": "Gradient descent", "startSec": 300, "endSec": 720, "keywords": ["gradient", "descent", "loss", "optimizer"] },
+      { "name": "Neural networks", "startSec": 720, "endSec": 1200, "keywords": ["neural", "network", "layers", "backpropagation"] }
+    ],
+    "retention": [
+      { "second": 0, "pct": 100 }, { "second": 290, "pct": 88 },
+      { "second": 300, "pct": 87 }, { "second": 700, "pct": 61 },
+      { "second": 720, "pct": 60 }, { "second": 1150, "pct": 54 }
+    ],
+    "audioSignals": [
+      { "startSec": 320, "endSec": 600, "emotion": "tense", "intensity": 0.8 }
+    ]
+  },
+  "comments": [
+    { "text": "Great intro, very clear explanation of what ML is!", "likeCount": 12 },
+    { "text": "Superb episode, thanks a lot 🔥", "likeCount": 4 },
+    { "text": "5:40 I didn't understand the gradient descent part at all, too fast", "likeCount": 9 },
+    { "text": "gradient descent eka terenne na, awul wage. Can you explain again?", "likeCount": 7 },
+    { "text": "ග්‍රේඩියන්ට් ඩිසෙන්ට් එක තේරුණේ නැහැ 😕", "likeCount": 5 },
+    { "text": "What learning rate should we use for gradient descent?", "likeCount": 6 },
+    { "text": "How does the loss function relate to the optimizer?", "likeCount": 3 },
+    { "text": "The background music at 6:10 is distracting and annoying", "likeCount": 8 },
+    { "text": "Please make a full episode on neural networks and backpropagation!", "likeCount": 15 },
+    { "text": "Can't wait for the neural network episode, this is amazing", "likeCount": 10 },
+    { "text": "Neural networks කොහොමද වැඩ කරන්නේ? ඉක්මනින් next part එකක් දාන්න", "likeCount": 6 },
+    { "text": "supiri podcast, niyamai", "likeCount": 2 }
+  ]
+}
