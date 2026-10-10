@@ -1,8 +1,13 @@
-﻿from typing import Any
+﻿from pydantic import BaseModel
 
-from pydantic import BaseModel
+
+class IngestItem(BaseModel):
+    type: str
+    text: str
+    timestamp: str
+    confidence: float | None = None
 
 
 class IngestPayload(BaseModel):
     video_id: str
-    items: list[dict[str, Any]] = []
+    items: list[IngestItem] = []
