@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ResultView } from '@/components/ResultView';
 import { feedbackService } from '@/services/feedback.service';
 import { videoService } from '@/services/video.service';
@@ -52,12 +52,10 @@ export default function Dashboard() {
       setResult(await feedbackService.analyze(videoId, force));
     });
 
-  const importAndAnalyze = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url.trim()) return;
-    void run(async () => {
+  const importAndAnalyzeUrl = (target: string, pages: CommentLimit) =>
+    run(async () => {
       setStatus('Fetching video and comments from YouTube…');
-      const imported = await videoService.importFromUrl(url.trim(), limit);
+      const imported = await videoService.importFromUrl(target, pages);
       const id = imported.video.videoId;
       setSelected(id);
       setStatus(`Imported ${imported.comments.inserted} new comments. Analysing…`);
@@ -65,7 +63,28 @@ export default function Dashboard() {
       await refresh();
       setUrl('');
     });
+
+  const importAndAnalyze = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (url.trim()) void importAndAnalyzeUrl(url.trim(), limit);
   };
+
+  // Opened from the browser extension: /?url=<youtube link>&limit=<pages|all>
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current) return; // StrictMode runs effects twice in dev
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get('url');
+    if (!target) return;
+    autoStarted.current = true;
+    const raw = params.get('limit');
+    const pages: CommentLimit = raw === 'all' ? 'all' : Number(raw) > 0 ? Number(raw) : 5;
+    setUrl(target);
+    setLimit(pages);
+    window.history.replaceState(null, '', window.location.pathname);
+    void importAndAnalyzeUrl(target, pages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main className="container">
