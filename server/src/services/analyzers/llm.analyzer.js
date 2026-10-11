@@ -50,21 +50,30 @@ async function classifyBatch(batch) {
 }
 
 exports.name = 'llm';
+const CONCURRENCY = 4; // batches in flight at once; keeps large comment sets fast without hammering rate limits
+
+async function processBatch(batch) {
+  let results;
+  try {
+    results = await classifyBatch(batch);
+  } catch (err) {
+    logger.warn(`LLM batch failed (${err.message}); using lexicon fallback for ${batch.length} comments`);
+    results = batch.map(() => null);
+  }
+  const missing = batch.filter((_, idx) => !results[idx]);
+  const fallback = missing.length ? await lexicon.analyze(missing) : [];
+  let f = 0;
+  return results.map((r) => r || fallback[f++]);
+}
+
 exports.analyze = async (items) => {
+  const batches = [];
+  for (let i = 0; i < items.length; i += BATCH_SIZE) batches.push(items.slice(i, i + BATCH_SIZE));
+
   const out = [];
-  for (let i = 0; i < items.length; i += BATCH_SIZE) {
-    const batch = items.slice(i, i + BATCH_SIZE);
-    let results;
-    try {
-      results = await classifyBatch(batch);
-    } catch (err) {
-      logger.warn(`LLM batch failed (${err.message}); using lexicon fallback for ${batch.length} comments`);
-      results = batch.map(() => null);
-    }
-    const missing = batch.filter((_, idx) => !results[idx]);
-    const fallback = missing.length ? await lexicon.analyze(missing) : [];
-    let f = 0;
-    results.forEach((r, idx) => out.push(r || fallback[f++]));
+  for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    const group = await Promise.all(batches.slice(i, i + CONCURRENCY).map(processBatch));
+    group.forEach((r) => out.push(...r));
   }
   return out;
 };

@@ -40,9 +40,11 @@ const commentsSchema = z.object({
     .max(5000),
 });
 
-const youtubeSchema = z.object({ maxPages: z.number().int().min(1).max(20).optional() });
+// number of 100-comment pages to fetch, or 'all'
+const pagesSchema = z.union([z.number().int().min(1).max(1000), z.literal('all')]).optional();
+const youtubeSchema = z.object({ maxPages: pagesSchema });
 
-const importSchema = z.object({ url: z.string().min(1), maxPages: z.number().int().min(1).max(20).optional() });
+const importSchema = z.object({ url: z.string().min(1), maxPages: pagesSchema });
 
 router.get('/', ctrl.list);
 router.post('/', validate(videoSchema), ctrl.upsert);

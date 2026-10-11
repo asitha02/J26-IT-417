@@ -1,3 +1,6 @@
+/** Number of 100-comment pages to fetch from YouTube, or every page. */
+export type CommentLimit = number | 'all';
+
 export interface VideoSummary {
   videoId: string;
   title: string;

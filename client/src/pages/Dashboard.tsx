@@ -2,10 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { ResultView } from '@/components/ResultView';
 import { feedbackService } from '@/services/feedback.service';
 import { videoService } from '@/services/video.service';
-import type { AnalysisResponse, VideoSummary } from '@/types/feedback';
+import type { AnalysisResponse, CommentLimit, VideoSummary } from '@/types/feedback';
+
+const LIMITS: { label: string; value: CommentLimit }[] = [
+  { label: '100 comments', value: 1 },
+  { label: '500 comments', value: 5 },
+  { label: '1,000 comments', value: 10 },
+  { label: '5,000 comments', value: 50 },
+  { label: 'All comments', value: 'all' },
+];
 
 export default function Dashboard() {
   const [url, setUrl] = useState('');
+  const [limit, setLimit] = useState<CommentLimit>(5);
   const [videos, setVideos] = useState<VideoSummary[]>([]);
   const [selected, setSelected] = useState<string>('');
   const [result, setResult] = useState<AnalysisResponse | null>(null);
@@ -48,7 +57,7 @@ export default function Dashboard() {
     if (!url.trim()) return;
     void run(async () => {
       setStatus('Fetching video and comments from YouTube…');
-      const imported = await videoService.importFromUrl(url.trim());
+      const imported = await videoService.importFromUrl(url.trim(), limit);
       const id = imported.video.videoId;
       setSelected(id);
       setStatus(`Imported ${imported.comments.inserted} new comments. Analysing…`);
@@ -72,6 +81,16 @@ export default function Dashboard() {
           aria-label="YouTube video URL"
           disabled={busy}
         />
+        <select
+          value={String(limit)}
+          onChange={(e) => setLimit(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+          aria-label="Number of comments to fetch"
+          disabled={busy}
+        >
+          {LIMITS.map((l) => (
+            <option key={l.label} value={String(l.value)}>{l.label}</option>
+          ))}
+        </select>
         <button type="submit" disabled={busy || !url.trim()}>Import &amp; analyse</button>
       </form>
 

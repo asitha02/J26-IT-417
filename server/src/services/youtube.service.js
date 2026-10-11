@@ -62,24 +62,32 @@ exports.fetchVideoMeta = async (videoId) => {
   };
 };
 
-/** Top-level comments, newest/most relevant first, up to maxPages * 100. */
+const MAX_PAGES_ALL = 1000; // safety cap for "all": 100,000 threads
+
+const toComment = (c) => ({
+  commentId: c.id,
+  text: c.snippet.textDisplay,
+  author: c.snippet.authorDisplayName,
+  likeCount: c.snippet.likeCount,
+  publishedAt: c.snippet.publishedAt,
+});
+
+/**
+ * Comments in relevance order, up to maxPages * 100 threads ('all' = until YouTube has no more pages).
+ * Each thread also brings the replies YouTube embeds in the list response (at most 5 per thread).
+ */
 exports.fetchComments = async (videoId, maxPages = 5) => {
+  const pages = maxPages === 'all' ? MAX_PAGES_ALL : maxPages;
   const comments = [];
   let pageToken;
-  for (let page = 0; page < maxPages; page += 1) {
+  for (let page = 0; page < pages; page += 1) {
     const data = await yt('commentThreads', {
-      part: 'snippet', videoId, maxResults: '100', textFormat: 'plainText', order: 'relevance',
+      part: 'snippet,replies', videoId, maxResults: '100', textFormat: 'plainText', order: 'relevance',
       ...(pageToken && { pageToken }),
     });
     for (const item of data.items || []) {
-      const s = item.snippet.topLevelComment.snippet;
-      comments.push({
-        commentId: item.snippet.topLevelComment.id,
-        text: s.textDisplay,
-        author: s.authorDisplayName,
-        likeCount: s.likeCount,
-        publishedAt: s.publishedAt,
-      });
+      comments.push(toComment(item.snippet.topLevelComment));
+      (item.replies?.comments || []).forEach((r) => comments.push(toComment(r)));
     }
     pageToken = data.nextPageToken;
     if (!pageToken) break;
