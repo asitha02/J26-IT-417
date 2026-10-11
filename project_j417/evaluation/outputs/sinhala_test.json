@@ -1,0 +1,32 @@
+[
+  {
+    "en": "Gradient descent minimizes a loss function.",
+    "si": "ග් රේඩියන්ට් පහත වැටීම මගින් අලාභ කාර්යය අවම කරයි.",
+    "back": "The gradient decline reduces the loss function."
+  },
+  {
+    "en": "A neural network is made of layers of connected nodes.",
+    "si": "ස්නායු ජාලයක් සම්බන්ධිත නෝඩ්වල ස්ථර වලින් සෑදී ඇත.",
+    "back": "A neural network is made up of layers of connected nodes."
+  },
+  {
+    "en": "Backpropagation computes the gradient of the loss with respect to each weight.",
+    "si": "ආපසු පැතිරීමෙන් සෑම බරකටම අදාළව අහිමි වීමේ පරාසය ගණනය කරනු ලැබේ.",
+    "back": "The loss range is calculated with respect to each weight of the return spread."
+  },
+  {
+    "en": "Overfitting happens when a model memorizes the training data.",
+    "si": "ආදර්ශකයෙකු පුහුණු දත්ත මතක තබා ගන්නා විට අධික ලෙස ගැලපීම සිදු වේ.",
+    "back": "Over-adjustment occurs when a sample remembers training data."
+  },
+  {
+    "en": "The learning rate controls the size of each update step.",
+    "si": "ඉගෙනීමේ වේගය මගින් සෑම යාවත්කාලීන කිරීමේ පියවරයකම ප් රමාණය පාලනය වේ.",
+    "back": "The speed of learning controls the amount of each update step."
+  },
+  {
+    "en": "A validation set is used to tune hyperparameters.",
+    "si": "අධි පරාමිතීන් සකස් කිරීම සඳහා වලංගු කිරීමේ කට්ටලයක් භාවිතා කරයි.",
+    "back": "A validation kit is used to set high parameters."
+  }
+]

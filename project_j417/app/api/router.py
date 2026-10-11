@@ -10,3 +10,6 @@ api_router.include_router(fusion.router)
 
 from app.api.routes import health, ingest, fusion, kb
 api_router.include_router(kb.router)
+
+from app.api.routes import health, ingest, fusion, translate
+api_router.include_router(translate.router)
