@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audience Feedback Mining</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Audience Feedback Mining</h1>
+
+    <section id="on-video" hidden>
+      <p class="label">Current video</p>
+      <p id="video-title" class="title"></p>
+      <label for="limit">Comments to analyse</label>
+      <select id="limit">
+        <option value="1">100 comments</option>
+        <option value="5" selected>500 comments</option>
+        <option value="10">1,000 comments</option>
+        <option value="50">5,000 comments</option>
+        <option value="all">All comments</option>
+      </select>
+      <button id="analyse" type="button">Analyse this video</button>
+    </section>
+
+    <section id="off-video" hidden>
+      <p class="muted">Open a YouTube video to analyse it, or paste a link:</p>
+      <input id="manual-url" type="text" placeholder="https://www.youtube.com/watch?v=…" />
+      <button id="analyse-manual" type="button">Analyse link</button>
+    </section>
+
+    <button id="open-dashboard" type="button" class="secondary">Open dashboard</button>
+
+    <details>
+      <summary>Settings</summary>
+      <label for="base-url">Dashboard address</label>
+      <input id="base-url" type="text" />
+      <p id="saved" class="muted" hidden>Saved</p>
+    </details>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
