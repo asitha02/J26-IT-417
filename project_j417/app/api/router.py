@@ -13,3 +13,9 @@ api_router.include_router(kb.router)
 
 from app.api.routes import health, ingest, fusion, translate
 api_router.include_router(translate.router)
+
+from app.api.routes import health, ingest, fusion, kb, generate
+api_router.include_router(generate.router)
+
+from app.api.routes import health, ingest, fusion, kb, generate, export
+api_router.include_router(export.router)

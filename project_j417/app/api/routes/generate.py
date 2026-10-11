@@ -66,3 +66,36 @@ def generate_content(req: GenerateRequest):
 
     db.generated_content.insert_one(dict(doc))
     return doc
+
+from typing import Literal
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from app.db.mongo import db
+from app.services.generator import generate
+
+router = APIRouter(prefix="/generate", tags=["generate"])
+
+
+class GenerateRequest(BaseModel):
+    output_type: Literal["summary", "notes", "quiz"]
+    kb_ids: list[str] | None = None
+
+
+@router.post("")
+def generate_content(req: GenerateRequest):
+    query = {"kb_id": {"$in": req.kb_ids}} if req.kb_ids else {}
+    items = list(db.kb_items.find(query, {"_id": 0}).limit(200))
+    if not items:
+        raise HTTPException(404, "No KB items found. Run /fusion/run first.")
+
+    content = generate(req.output_type, items)
+    doc = {
+        "output_type": req.output_type,
+        "language": "en",
+        "content": content,
+        "kb_ids": [i["kb_id"] for i in items],
+    }
+    db.generated_content.insert_one(dict(doc))
+    return doc
