@@ -141,3 +141,7 @@ def delete_item(item_id: str):
     result = items.delete_one({"_id": to_oid(item_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Item not found")
+
+
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
