@@ -1,0 +1,14 @@
+[
+  {
+    "videoId": "lec1",
+    "concepts": [{"text": "Gradient descent", "start": 190}],
+    "definitions": [{"text": "Gradient descent minimizes a loss function.", "start": 195}],
+    "relationships": [{"subject": "Gradient descent", "relation": "minimizes", "object": "loss function", "start": 200}]
+  },
+  {
+    "video_id": "lec2",
+    "items": [
+      {"type": "fact", "text": "Gradient descent is an optimization algorithm used to reduce the loss.", "timestamp": "00:07:45"}
+    ]
+  }
+]
