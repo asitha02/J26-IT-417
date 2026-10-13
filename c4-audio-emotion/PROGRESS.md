@@ -33,3 +33,19 @@ One entry per day: what was done, what's next, blockers.
 - ffmpeg not installed yet (needed by Day 5).
 - yt-dlp warns about a missing JavaScript runtime (deno); may matter for audio downloads on Day 5.
 - Confirm with the team that collection name `analyses` doesn't clash in the shared database.
+
+## Day 3 — 14 Oct 2026
+
+**Done**
+- Installed `fastapi` + `uvicorn`.
+- `schemas.py`: Pydantic models matching the CLAUDE.md section 8 JSON contracts.
+- `audio_utils.py`: YouTube URL validation (watch / youtu.be / shorts), title + duration via yt-dlp, 10 s / 5 s segment timing (max 180 s).
+- `model.py`: `MockEmotionModel` (seeded random walk, marked `"mock": true`), quadrant + overall summary helpers.
+- `main.py`: `/health`, `POST /analyze` (with MongoDB cache), `GET /analyses`, `GET /analyses/{video_id}`; clear errors for bad URL (400), unavailable video (422), missing analysis (404), database down (503).
+- Tested with curl: "Me at the zoo" → 3 mock segments saved to MongoDB; second request served from cache.
+
+**Next (Day 4)**
+- Streamlit UI connected to the backend (timeline chart, quadrant plot, results). Tag `v0.1-vertical-slice`.
+
+**Blockers**
+- `recommendations` is still an empty list; fusion rules come on Day 11 (a simple one may be added on Day 4 for the vertical slice).

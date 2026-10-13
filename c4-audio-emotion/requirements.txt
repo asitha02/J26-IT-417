@@ -4,3 +4,7 @@ pymongo==4.18.3
 python-dotenv==1.2.4
 # Downloads audio from YouTube
 yt-dlp==2026.8.19
+# Backend web API (FastAPI also installs pydantic, which checks JSON shapes)
+fastapi==0.143.0
+# Server that runs the FastAPI app
+uvicorn==0.54.0

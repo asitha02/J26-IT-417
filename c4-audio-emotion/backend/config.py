@@ -20,6 +20,11 @@ MONGODB_URI = os.getenv("MONGODB_URI")  # secret: never print this
 MONGODB_DB = os.getenv("MONGODB_DB", "project_j417")
 ANALYSES_COLLECTION = "analyses"
 
+# --- Emotion model ---
+# "true" (default) = fake MockEmotionModel; "false" = real trained model (Day 10)
+USE_MOCK_MODEL = os.getenv("USE_MOCK_MODEL", "true").lower() == "true"
+MODEL_PATH = os.getenv("MODEL_PATH", "models/c4_emotion_head.pt")
+
 # --- Audio processing constants (see CLAUDE.md section 9.1) ---
 SEGMENT_SECONDS = 10     # length of each analysis window
 HOP_SECONDS = 5          # step between window starts (windows overlap by 5 s)

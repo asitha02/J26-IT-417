@@ -44,7 +44,14 @@ Requirements: Windows, Python 3.10+ (developed on 3.13), Git. All commands run f
 
 ## Running
 
-_To be completed (Days 3–4): start the backend with `uvicorn` and the frontend with `streamlit`._
+Backend (from the `c4-audio-emotion` folder):
+```
+venv\Scripts\python -m uvicorn backend.main:app --reload
+```
+Open http://localhost:8000/docs to try the endpoints (`/health`, `POST /analyze`, `/analyses`, `/analyses/{video_id}`).
+With `USE_MOCK_MODEL=true` the emotion values are fake and marked `"mock": true`.
+
+Frontend: _to be completed (Day 4) — `streamlit`._
 
 ## Model weights
 
