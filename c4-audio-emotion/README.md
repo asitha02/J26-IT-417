@@ -26,7 +26,21 @@ Component 4 of the IT4010 group research project (SLIIT). Given a YouTube video,
 
 ## Setup
 
-_To be completed (Day 2): Python version, virtual environment, `pip install -r requirements.txt`, ffmpeg, `.env` setup._
+Requirements: Windows, Python 3.10+ (developed on 3.13), Git. All commands run from the `c4-audio-emotion` folder.
+
+1. Create a virtual environment and install packages:
+   ```
+   py -3.13 -m venv venv
+   venv\Scripts\python -m pip install -r requirements.txt
+   ```
+2. Install ffmpeg (needed to convert audio): `winget install Gyan.FFmpeg`, then restart the terminal and check `ffmpeg -version`.
+3. Copy `.env.example` to `.env` and set `MONGODB_URI` to the team's shared Atlas connection string (ask the team lead; never commit `.env`).
+4. Check everything works:
+   ```
+   venv\Scripts\python -m scripts.test_db_connection
+   venv\Scripts\python -m scripts.test_ytdlp
+   ```
+   The first should end with `All database checks passed.`; the second prints a video's title and duration.
 
 ## Running
 

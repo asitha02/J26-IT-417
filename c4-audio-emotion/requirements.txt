@@ -1,0 +1,6 @@
+# Database: MongoDB driver (includes Atlas "mongodb+srv://" support)
+pymongo==4.18.3
+# Reads secrets from the .env file so they are never written in code
+python-dotenv==1.2.4
+# Downloads audio from YouTube
+yt-dlp==2026.8.19
