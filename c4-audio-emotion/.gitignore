@@ -1,0 +1,38 @@
+# --- Secrets (never commit) ---
+.env
+
+# --- Python virtual environment and caches ---
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# --- Audio files (large, and may be copyrighted) ---
+*.wav
+*.mp3
+*.m4a
+*.webm
+*.opus
+*.flac
+tmp_audio/
+
+# --- Datasets (DEAM lives on Google Drive, not in git) ---
+data/
+datasets/
+
+# --- Model weights (shared via Google Drive link in README) ---
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Editor / OS files ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
