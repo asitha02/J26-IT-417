@@ -20,6 +20,7 @@ from backend.audio_utils import (
     make_segment_times,
 )
 from backend.config import HOP_SECONDS, SEGMENT_SECONDS, USE_MOCK_MODEL
+from backend.fusion import generate_recommendations
 from backend.model import get_model, quadrant_of, summarize
 from backend.schemas import AnalysisResponse, AnalysisSummary, AnalyzeRequest
 
@@ -80,7 +81,7 @@ def analyze(request: AnalyzeRequest):
         "overall": summarize(segments),
         "c3_input": {},          # Day 11: dummy C3 sentiment
         "gaps_input": {},        # Day 11: dummy knowledge gaps
-        "recommendations": [],   # Day 11: fusion rules
+        "recommendations": generate_recommendations(segments),  # Day 11: + C3 and gap rules
         "status": "complete",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }

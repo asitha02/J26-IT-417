@@ -51,7 +51,11 @@ venv\Scripts\python -m uvicorn backend.main:app --reload
 Open http://localhost:8000/docs to try the endpoints (`/health`, `POST /analyze`, `/analyses`, `/analyses/{video_id}`).
 With `USE_MOCK_MODEL=true` the emotion values are fake and marked `"mock": true`.
 
-Frontend: _to be completed (Day 4) — `streamlit`._
+Frontend (second terminal, same folder, backend must be running):
+```
+venv\Scripts\python -m streamlit run frontend/app.py
+```
+The page opens at http://localhost:8501. Paste a YouTube link and click **Analyze**.
 
 ## Model weights
 

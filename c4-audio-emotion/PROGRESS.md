@@ -49,3 +49,22 @@ One entry per day: what was done, what's next, blockers.
 
 **Blockers**
 - `recommendations` is still an empty list; fusion rules come on Day 11 (a simple one may be added on Day 4 for the vertical slice).
+
+## Day 4 — 14 Oct 2026
+
+**Done**
+- Installed `streamlit` + `plotly`.
+- `frontend/app.py`: URL input + Analyze button, sidebar with backend URL and past analyses (click to reopen from MongoDB),
+  mock-model warning badge, emotion timeline (mm:ss, recommendation ranges shaded), valence–arousal quadrant map,
+  dummy-data section, recommendation cards sorted by severity, Download JSON.
+- Clear UI errors: invalid URL, unavailable video, backend not running, invalid backend reply.
+- `backend/fusion.py`: first rule **R1_low_energy** (audio-only: arousal < -0.3 for ≥ 30 s), wired into `/analyze`.
+- Tested with Streamlit's AppTest: analyze flow, bad URL, backend down, recommendation card rendering.
+
+**Next (Days 5–7)**
+- Day 5: real audio download / trim / segment (needs ffmpeg, numpy, librosa, soundfile, pytest — awaiting approval).
+- Day 6: CLAP embeddings (needs torch, transformers — awaiting approval).
+- Day 7: DEAM + notebook 01 in Colab.
+
+**Blockers**
+- Package approvals for Days 5–6.

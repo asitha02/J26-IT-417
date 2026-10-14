@@ -29,3 +29,8 @@ MODEL_PATH = os.getenv("MODEL_PATH", "models/c4_emotion_head.pt")
 SEGMENT_SECONDS = 10     # length of each analysis window
 HOP_SECONDS = 5          # step between window starts (windows overlap by 5 s)
 MAX_AUDIO_SECONDS = 180  # only the first 3 minutes are analysed
+
+# --- Fusion rule thresholds (CLAUDE.md section 10) ---
+# These are starting values to tune later, not proven truths.
+R1_LOW_AROUSAL = -0.3        # arousal below this counts as "low energy"
+R1_MIN_DURATION_S = 30       # low energy must last at least this long to be reported
