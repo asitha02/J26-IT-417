@@ -1,29 +1,9 @@
-﻿from fastapi import APIRouter
-
-from app.db.mongo import db
-from app.models.ingest import IngestPayload
-
-router = APIRouter(prefix="/ingest", tags=["ingest"])
-
-
-@router.post("")
-def ingest(payload: IngestPayload):
-    if db is None:
-        return {"video_id": payload.video_id, "items": len(payload.items)}
-
-    db.raw_extractions.replace_one(
-        {"video_id": payload.video_id},
-        payload.model_dump(),
-        upsert=True,
-    )
-    return {"video_id": payload.video_id, "items": len(payload.items)}
-
 import json
 from typing import Any
 
 from fastapi import APIRouter, Body, File, HTTPException, UploadFile
 
-from app.db.mongo import db
+from app.db.mongo import require_db
 from app.models.ingest import IngestPayload
 from app.services.adapter import to_payloads
 
@@ -31,6 +11,7 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 
 def _store(payloads: list[IngestPayload]) -> dict:
+    db = require_db()
     for p in payloads:
         db.raw_extractions.replace_one({"video_id": p.video_id}, p.model_dump(), upsert=True)
     return {"videos": [p.video_id for p in payloads],

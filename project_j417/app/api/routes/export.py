@@ -1,13 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from app.db.mongo import db
+from app.db.mongo import require_db
 
 router = APIRouter(prefix="/export", tags=["export"])
 
 
 @router.get("/kb.txt", response_class=PlainTextResponse)
 def kb_as_text():
+    db = require_db()
     lines = []
     for it in db.kb_items.find({}, {"_id": 0}):
         srcs = ", ".join(f"{s['video_id']}@{s['timestamp']}" for s in it["sources"])
@@ -19,6 +20,7 @@ def kb_as_text():
 
 @router.get("/generated.txt", response_class=PlainTextResponse)
 def latest_generated(output_type: str = "summary", language: str = "en"):
+    db = require_db()
     doc = db.generated_content.find_one(
         {"output_type": output_type, "language": language}, sort=[("_id", -1)]
     )

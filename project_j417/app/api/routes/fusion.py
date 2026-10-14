@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.db.mongo import db
+from app.db.mongo import require_db
 from app.models.ingest import IngestPayload
 from app.services.dedupe import group_units
 from app.services.embedding import embed_texts
@@ -17,6 +17,7 @@ class FusionRequest(BaseModel):
 
 @router.post("/run")
 def run_fusion(req: FusionRequest):
+    db = require_db()
     query = {"video_id": {"$in": req.video_ids}} if req.video_ids else {}
     units = []
     for doc in db.raw_extractions.find(query):

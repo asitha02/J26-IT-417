@@ -1,9 +1,12 @@
-﻿import os
-
 from pymongo import MongoClient
+from fastapi import HTTPException
 
-MONGODB_URI = os.getenv("MONGODB_URI")
-MONGODB_DB = os.getenv("MONGODB_DB", "project_j417")
+from app.core.config import MONGODB_DB, MONGODB_URI
+
+_DB_UNAVAILABLE = (
+    "MongoDB is unavailable. Check MONGODB_URI in the backend .env file "
+    "and confirm that the database is reachable."
+)
 
 
 def _connect_database():
@@ -23,8 +26,14 @@ client, db = _connect_database()
 
 def ping_db():
     if client is None:
-        return {"ok": 1}
+        raise RuntimeError(_DB_UNAVAILABLE)
     try:
         return client.admin.command("ping")
-    except Exception:
-        return {"ok": 1}
+    except Exception as exc:
+        raise RuntimeError(_DB_UNAVAILABLE) from exc
+
+
+def require_db():
+    if db is None:
+        raise HTTPException(status_code=503, detail=_DB_UNAVAILABLE)
+    return db
