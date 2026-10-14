@@ -1,0 +1,48 @@
+[
+  {
+    "video_id": "ml_lecture_1",
+    "items": [
+      {"type": "definition", "text": "Machine learning is a field where computers learn patterns from data without being explicitly programmed.", "timestamp": "00:01:10", "confidence": 0.95},
+      {"type": "definition", "text": "Gradient descent minimizes a loss function.", "timestamp": "00:03:10", "confidence": 0.93},
+      {"type": "concept", "text": "Supervised learning uses labeled examples to train a model.", "timestamp": "00:05:20", "confidence": 0.91},
+      {"type": "fact", "text": "Overfitting happens when a model memorizes the training data and performs poorly on new data.", "timestamp": "00:08:45", "confidence": 0.9},
+      {"type": "entity", "text": "Andrew Ng", "timestamp": "00:10:00", "confidence": 0.88},
+      {"type": "relationship", "text": "The learning rate controls the step size of gradient descent.", "timestamp": "00:11:30", "confidence": 0.89},
+      {"type": "fact", "text": "A validation set is used to tune hyperparameters.", "timestamp": "00:13:05", "confidence": 0.92}
+    ]
+  },
+  {
+    "video_id": "ml_lecture_2",
+    "items": [
+      {"type": "definition", "text": "Gradient descent is an optimization algorithm used to reduce the loss.", "timestamp": "00:02:15", "confidence": 0.94},
+      {"type": "concept", "text": "In supervised learning, a model is trained on data that already has correct labels.", "timestamp": "00:04:40", "confidence": 0.9},
+      {"type": "relationship", "text": "The learning rate controls the size of each update step in gradient descent.", "timestamp": "00:06:00", "confidence": 0.9},
+      {"type": "fact", "text": "Overfitting occurs when a model memorizes training examples instead of learning general patterns.", "timestamp": "00:07:30", "confidence": 0.91},
+      {"type": "definition", "text": "Backpropagation computes the gradient of the loss with respect to each weight in a neural network.", "timestamp": "00:09:50", "confidence": 0.93},
+      {"type": "fact", "text": "Regularization techniques such as dropout reduce overfitting.", "timestamp": "00:12:10", "confidence": 0.87},
+      {"type": "entity", "text": "Geoffrey Hinton", "timestamp": "00:14:00", "confidence": 0.86}
+    ]
+  },
+  {
+    "video_id": "ml_podcast_3",
+    "items": [
+      {"type": "definition", "text": "Um, gradient descent minimizes a loss function, you know.", "timestamp": "00:02:30", "confidence": 0.85},
+      {"type": "concept", "text": "Unsupervised learning finds hidden structure in data without labels.", "timestamp": "00:06:40", "confidence": 0.88},
+      {"type": "fact", "text": "Neural networks are trained using backpropagation.", "timestamp": "00:09:10", "confidence": 0.9},
+      {"type": "entity", "text": "Andrew Ng", "timestamp": "00:11:00", "confidence": 0.87},
+      {"type": "fact", "text": "Data augmentation increases the amount of training data by transforming existing samples.", "timestamp": "00:15:20", "confidence": 0.86},
+      {"type": "fact", "text": "GPUs may have been used in early experiments, but the speaker was not sure.", "timestamp": "00:17:05", "confidence": 0.2}
+    ]
+  },
+  {
+    "video_id": "ml_tutorial_4",
+    "items": [
+      {"type": "fact", "text": "A validation set is used to tune hyperparameters.", "timestamp": "00:03:00", "confidence": 0.92},
+      {"type": "fact", "text": "The test set is used only once, to estimate the final model performance.", "timestamp": "00:04:10", "confidence": 0.9},
+      {"type": "definition", "text": "Backpropagation is the algorithm that calculates the gradients of the loss for every weight in a neural network.", "timestamp": "00:07:20", "confidence": 0.92},
+      {"type": "concept", "text": "Unsupervised learning discovers patterns in unlabeled data.", "timestamp": "00:08:50", "confidence": 0.89},
+      {"type": "relationship", "text": "Dropout randomly disables neurons during training to reduce overfitting.", "timestamp": "00:11:45", "confidence": 0.88},
+      {"type": "entity", "text": "Geoffrey Hinton", "timestamp": "00:13:30", "confidence": 0.85}
+    ]
+  }
+]
