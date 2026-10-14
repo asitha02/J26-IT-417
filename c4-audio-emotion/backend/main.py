@@ -6,6 +6,7 @@ Start it from the c4-audio-emotion folder:
 Then open http://localhost:8000/docs to try the endpoints.
 """
 import logging
+import tempfile
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Request
@@ -14,12 +15,15 @@ from pymongo.errors import PyMongoError
 
 from backend import db
 from backend.audio_utils import (
+    AudioDownloadError,
     VideoUnavailableError,
+    cut_segments,
+    download_audio,
     extract_video_id,
     get_video_info,
-    make_segment_times,
+    load_audio,
 )
-from backend.config import HOP_SECONDS, SEGMENT_SECONDS, USE_MOCK_MODEL
+from backend.config import HOP_SECONDS, SAMPLE_RATE, SEGMENT_SECONDS, USE_MOCK_MODEL
 from backend.fusion import generate_recommendations
 from backend.model import get_model, quadrant_of, summarize
 from backend.schemas import AnalysisResponse, AnalysisSummary, AnalyzeRequest
@@ -64,16 +68,26 @@ def analyze(request: AnalyzeRequest):
         logger.warning("Video %s unavailable: %s", video_id, e)
         raise HTTPException(status_code=422, detail=f"Could not read this video: {e}")
 
-    # 4. Cut the first 3 minutes into windows and predict valence/arousal for each.
-    segment_times = make_segment_times(info["duration"])
-    predictions = emotion_model.predict(segment_times, video_id=video_id)
+    # 4. Download the first 3 minutes of audio and cut it into windows.
+    #    TemporaryDirectory deletes the WAV file automatically when the block ends.
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            wav_path = download_audio(video_id, tmp)
+            audio = load_audio(wav_path)
+    except AudioDownloadError as e:
+        logger.error("Audio download failed for %s: %s", video_id, e)
+        raise HTTPException(status_code=502, detail=f"Could not download the audio: {e}")
+    segments_audio = cut_segments(audio)
+
+    # 5. Predict valence/arousal for each window.
+    predictions = emotion_model.predict(segments_audio, video_id=video_id)
     segments = [{**p, "quadrant": quadrant_of(p["valence"], p["arousal"])} for p in predictions]
 
     analysis = {
         "video_id": video_id,
         "youtube_url": f"https://www.youtube.com/watch?v={video_id}",
         "title": info["title"],
-        "analyzed_seconds": segment_times[-1]["end_s"],
+        "analyzed_seconds": round(len(audio) / SAMPLE_RATE, 2),
         "segment_seconds": SEGMENT_SECONDS,
         "hop_seconds": HOP_SECONDS,
         "model_info": emotion_model.info,
@@ -86,7 +100,7 @@ def analyze(request: AnalyzeRequest):
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    # 5. Save (replaces any older analysis of the same video) and return.
+    # 6. Save (replaces any older analysis of the same video) and return.
     db.save_analysis(analysis)
     logger.info("Analysed %s (%d segments, mock=%s)", video_id, len(segments), emotion_model.info["mock"])
     return db.get_analysis(video_id)

@@ -68,3 +68,42 @@ One entry per day: what was done, what's next, blockers.
 
 **Blockers**
 - Package approvals for Days 5–6.
+
+## Day 5 — 15 Oct 2026
+
+**Done**
+- Installed ffmpeg 9.0.2 (winget), `librosa`, `soundfile`, `pytest`.
+- `audio_utils.py`: `download_audio` (yt-dlp downloads ONLY the first 180 s, ffmpeg converts to WAV),
+  `load_audio` (48 kHz mono via librosa), `cut_segments` (10 s windows, 5 s hop, last window padded with silence).
+- `/analyze` now downloads real audio into a temporary folder that is deleted automatically.
+- 22 automatic tests (`tests/`): URL parsing, window timing, padding, R1 rule. All pass.
+- Real checks: 19 s video → 3 windows; 77-min documentary → only first 180 s downloaded → 35 windows of 480 000 samples.
+
+## Day 6 — 15 Oct 2026
+
+**Done**
+- Installed `torch` 2.14.1 (CPU) and `transformers` 5.19.0.
+- Verified CLAP (`laion/clap-htsat-unfused`): expects 48 kHz, max 10 s input (= our window), outputs 512 numbers per window, length-normalised to 1.
+- `ClapEmbedder` in `model.py` (frozen, batches of 8, `no_grad`).
+- Real check: "How A Star Is Born" → embeddings shape (35, 512), 3.9 s on CPU.
+
+**Next (Day 7)**
+- DEAM on Google Drive; notebook 01 in Colab (windowing, CLAP embeddings, labels).
+
+**Blockers / notes**
+- Downloading the first 3 minutes of a long video takes ~90 s (slow partial download). Acceptable for now; cached in MongoDB after the first time.
+
+## Day 7 — 15 Oct 2026
+
+**Done**
+- `notebooks/01_prepare_deam_embeddings.ipynb` (Colab, T4 GPU): unzip DEAM from Drive, load dynamic annotations,
+  check label scale (convert 1–9 → [-1, 1] only if needed), 10 s / 5 s windows over annotated regions only,
+  CLAP embeddings, checkpoint every 200 songs, merged `deam_clap_windows.npz` + metadata JSON + overview figure.
+- Windowing logic tested locally on fake annotations (45 s clip → 5 windows; partial labels; long song).
+
+**Next**
+- Run notebook 01 in Colab once DEAM is uploaded to `My Drive/C4/DEAM/`.
+- Day 8: notebook 02, split by song, baseline + metrics.
+
+**Blockers**
+- DEAM must be downloaded and uploaded to Google Drive (manual step).

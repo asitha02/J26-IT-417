@@ -1,15 +1,22 @@
 """
-Audio helpers: YouTube URL checking, video info, and segment timing.
+Audio helpers: YouTube URL checking, video info, downloading and cutting audio.
 
-Day 3: URL validation, metadata (title, duration) and segment start/end times.
-Day 5 adds: downloading the audio, converting to WAV, trimming and cutting it.
+Pipeline: download_audio() -> load_audio() -> cut_segments()
+          (WAV file)          (numbers)       (10 s windows, 5 s hop)
 """
+import logging
 import re
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import librosa
+import numpy as np
 import yt_dlp
+from yt_dlp.utils import download_range_func
 
-from backend.config import HOP_SECONDS, MAX_AUDIO_SECONDS, SEGMENT_SECONDS
+from backend.config import HOP_SECONDS, MAX_AUDIO_SECONDS, SAMPLE_RATE, SEGMENT_SECONDS
+
+logger = logging.getLogger("c4.audio")
 
 # A YouTube video id is always 11 characters: letters, digits, "-" or "_".
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -82,4 +89,66 @@ def make_segment_times(total_seconds: float) -> list[dict]:
         start += HOP_SECONDS
     # Final window: ends exactly at the end of the audio (may be shorter than 10 s).
     segments.append({"start_s": start, "end_s": round(total, 2)})
+    return segments
+
+
+class AudioDownloadError(Exception):
+    """yt-dlp or ffmpeg could not download / convert the audio."""
+
+
+def download_audio(video_id: str, out_dir: str) -> Path:
+    """
+    Download ONLY the first MAX_AUDIO_SECONDS of the video's audio track
+    and convert it to a WAV file inside out_dir. Returns the WAV path.
+
+    Downloading just the first 3 minutes (not the whole video) keeps
+    long videos fast. ffmpeg does the cutting and the WAV conversion.
+    """
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    options = {
+        "format": "bestaudio/best",                     # audio only, no video
+        "outtmpl": str(Path(out_dir) / f"{video_id}.%(ext)s"),
+        "download_ranges": download_range_func(None, [(0, MAX_AUDIO_SECONDS)]),
+        "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
+        "quiet": True,
+        "no_warnings": True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(options) as ydl:
+            ydl.download([url])
+    except yt_dlp.utils.DownloadError as e:
+        raise AudioDownloadError(f"Download failed: {e}") from e
+
+    wav_path = Path(out_dir) / f"{video_id}.wav"
+    if not wav_path.exists():
+        raise AudioDownloadError("Download finished but no WAV file was produced (is ffmpeg installed?).")
+    return wav_path
+
+
+def load_audio(path) -> np.ndarray:
+    """
+    Read an audio file as numbers: one float per sample, 48 000 per second, mono.
+    librosa resamples to SAMPLE_RATE and mixes stereo down to mono for us.
+    Only the first MAX_AUDIO_SECONDS are kept.
+    """
+    audio, _ = librosa.load(path, sr=SAMPLE_RATE, mono=True, duration=MAX_AUDIO_SECONDS)
+    return audio
+
+
+def cut_segments(audio: np.ndarray) -> list[dict]:
+    """
+    Cut the audio into the windows from make_segment_times().
+    Every window is exactly SEGMENT_SECONDS long: a shorter last window is
+    padded with silence (zeros) so the model always gets the same input size.
+
+    Returns [{'start_s', 'end_s', 'audio': np.ndarray of SEGMENT_SECONDS * SAMPLE_RATE}, ...]
+    """
+    window_len = SEGMENT_SECONDS * SAMPLE_RATE
+    segments = []
+    for times in make_segment_times(len(audio) / SAMPLE_RATE):
+        start = int(times["start_s"] * SAMPLE_RATE)
+        chunk = audio[start:start + window_len]
+        if len(chunk) < window_len:
+            chunk = np.pad(chunk, (0, window_len - len(chunk)))  # add silence at the end
+        segments.append({**times, "audio": chunk})
     return segments

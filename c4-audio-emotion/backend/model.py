@@ -11,7 +11,53 @@ Arousal = how calm (-1) or energetic (+1) the audio feels.
 """
 import random
 
+import numpy as np
+
+from backend.config import SAMPLE_RATE
+
+CLAP_MODEL_NAME = "laion/clap-htsat-unfused"
 MOCK_MODEL_INFO = {"embedding_model": "none", "head": "mock_random_walk", "mock": True}
+
+
+class ClapEmbedder:
+    """
+    Turns each 10 s audio window into an "embedding": a list of 512 numbers
+    that summarises what the audio sounds like. Similar-sounding audio gets
+    similar numbers. CLAP was pretrained by LAION on a huge set of audio + text
+    pairs; we only USE it (frozen: its weights are never changed).
+
+    My trained BiLSTM+attention head (Day 10) reads these 512-number vectors
+    instead of raw audio. That is why this step comes before the emotion head.
+    """
+
+    def __init__(self):
+        # Imported here (not at the top) so the mock model still starts quickly
+        # without loading PyTorch and the 600 MB CLAP model.
+        import torch
+        from transformers import ClapModel, ClapProcessor
+
+        self.torch = torch
+        self.processor = ClapProcessor.from_pretrained(CLAP_MODEL_NAME)
+        self.model = ClapModel.from_pretrained(CLAP_MODEL_NAME).eval()  # eval = inference mode
+
+    def embed(self, segments_audio: list[dict], batch_size: int = 8) -> np.ndarray:
+        """
+        segments_audio: [{'audio': np.ndarray of 480 000 samples, ...}, ...]
+        Returns an array of shape (number_of_windows, 512).
+        Windows are processed in small batches so memory use stays low.
+        """
+        embeddings = []
+        for i in range(0, len(segments_audio), batch_size):
+            batch = [s["audio"] for s in segments_audio[i:i + batch_size]]
+            # The feature extractor turns raw audio into a mel spectrogram (a picture of
+            # which frequencies are loud over time), the input CLAP was trained on.
+            inputs = self.processor.feature_extractor(batch, sampling_rate=SAMPLE_RATE, return_tensors="pt")
+            with self.torch.no_grad():  # no_grad = don't track gradients: we are not training CLAP
+                output = self.model.get_audio_features(**inputs)
+            # transformers 5 wraps the result; the 512-number vectors are in pooler_output.
+            vectors = output if self.torch.is_tensor(output) else output.pooler_output
+            embeddings.append(vectors.numpy())
+        return np.concatenate(embeddings, axis=0)
 
 
 class MockEmotionModel:

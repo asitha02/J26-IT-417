@@ -28,9 +28,10 @@ Component 4 of the IT4010 group research project (SLIIT). Given a YouTube video,
 
 Requirements: Windows, Python 3.10+ (developed on 3.13), Git. All commands run from the `c4-audio-emotion` folder.
 
-1. Create a virtual environment and install packages:
+1. Create a virtual environment and install packages (CPU PyTorch first, so pip doesn't pick the large GPU build):
    ```
    py -3.13 -m venv venv
+   venv\Scripts\python -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
    venv\Scripts\python -m pip install -r requirements.txt
    ```
 2. Install ffmpeg (needed to convert audio): `winget install Gyan.FFmpeg`, then restart the terminal and check `ffmpeg -version`.
@@ -41,6 +42,12 @@ Requirements: Windows, Python 3.10+ (developed on 3.13), Git. All commands run f
    venv\Scripts\python -m scripts.test_ytdlp
    ```
    The first should end with `All database checks passed.`; the second prints a video's title and duration.
+5. Optional deeper checks:
+   ```
+   venv\Scripts\python -m pytest                        (automatic tests, no internet needed)
+   venv\Scripts\python -m scripts.test_audio_download   (real download -> windows)
+   venv\Scripts\python -m scripts.test_clap_embeddings  (first run downloads the ~600 MB CLAP model)
+   ```
 
 ## Running
 

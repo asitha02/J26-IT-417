@@ -29,6 +29,7 @@ MODEL_PATH = os.getenv("MODEL_PATH", "models/c4_emotion_head.pt")
 SEGMENT_SECONDS = 10     # length of each analysis window
 HOP_SECONDS = 5          # step between window starts (windows overlap by 5 s)
 MAX_AUDIO_SECONDS = 180  # only the first 3 minutes are analysed
+SAMPLE_RATE = 48000      # samples per second; CLAP expects 48 kHz mono audio
 
 # --- Fusion rule thresholds (CLAUDE.md section 10) ---
 # These are starting values to tune later, not proven truths.
