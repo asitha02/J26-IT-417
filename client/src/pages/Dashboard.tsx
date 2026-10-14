@@ -69,12 +69,12 @@ export default function Dashboard() {
     if (url.trim()) void importAndAnalyzeUrl(url.trim(), limit);
   };
 
-  // Opened from the browser extension: /?url=<youtube link>&limit=<pages|all>
+  // Opened from the browser extension: /?video=<youtube link>&limit=<pages|all>
   const autoStarted = useRef(false);
   useEffect(() => {
     if (autoStarted.current) return; // StrictMode runs effects twice in dev
     const params = new URLSearchParams(window.location.search);
-    const target = params.get('url');
+    const target = params.get('video');
     if (!target) return;
     autoStarted.current = true;
     const raw = params.get('limit');

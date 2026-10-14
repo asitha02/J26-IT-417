@@ -19,7 +19,7 @@ async function getBase() {
 
 async function openDashboard(videoUrl, limit) {
   const base = await getBase();
-  const query = videoUrl ? `/?url=${encodeURIComponent(videoUrl)}&limit=${encodeURIComponent(limit)}` : '/';
+  const query = videoUrl ? `/?video=${encodeURIComponent(videoUrl)}&limit=${encodeURIComponent(limit)}` : '/';
   await chrome.tabs.create({ url: base + query });
   window.close();
 }
