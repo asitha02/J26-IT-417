@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "sample": "node scripts/load-sample.js"
+    "sample": "node scripts/load-sample.js",
+    "export-training": "node scripts/export-training-data.js"
   },
   "engines": {
     "node": ">=18"
