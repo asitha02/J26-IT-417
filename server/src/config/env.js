@@ -12,8 +12,7 @@ module.exports = {
   mongoDb: process.env.MONGODB_DB || undefined,
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   // Audience feedback mining
-  analyzer: (process.env.ANALYZER || 'auto').toLowerCase(), // auto | llm | lexicon | model
-  modelUrl: (process.env.MODEL_URL || 'http://localhost:8001').replace(/\/$/, ''), // trained model service (training/serve.py)
+  analyzer: (process.env.ANALYZER || 'auto').toLowerCase(), // auto | llm | lexicon
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5',
   youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
