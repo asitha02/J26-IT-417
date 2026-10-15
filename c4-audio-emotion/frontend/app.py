@@ -67,8 +67,11 @@ def timeline_chart(result: dict) -> go.Figure:
     x = [(s["start_s"] + s["end_s"]) / 2 for s in segments]
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=x, y=[s["valence"] for s in segments], name="Valence (negative ↔ positive)", mode="lines+markers"))
-    fig.add_trace(go.Scatter(x=x, y=[s["arousal"] for s in segments], name="Arousal (calm ↔ energetic)", mode="lines+markers"))
+    # Two clearly different colours so valence and arousal are easy to tell apart.
+    fig.add_trace(go.Scatter(x=x, y=[s["valence"] for s in segments], name="Valence (negative ↔ positive)",
+                             mode="lines+markers", line=dict(color="#2a9d8f")))
+    fig.add_trace(go.Scatter(x=x, y=[s["arousal"] for s in segments], name="Arousal (calm ↔ energetic)",
+                             mode="lines+markers", line=dict(color="#e76f51")))
 
     for rec in result["recommendations"]:
         fig.add_vrect(x0=rec["start_s"], x1=rec["end_s"], fillcolor="orange", opacity=0.15, line_width=0)

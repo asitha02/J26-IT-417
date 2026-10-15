@@ -143,6 +143,11 @@ One entry per day: what was done, what's next, blockers.
 - `get_model` gives a clear message if `models/c4_emotion_head.pt` is missing.
 - Tested the full API path with a test checkpoint (same file format); 22 tests still pass.
 
+- Real weights downloaded, `USE_MOCK_MODEL=false`: UI shows real predictions (e.g. "How A Star Is Born":
+  dominant mood tense/negative, mean valence -0.26, mean arousal +0.09). Screenshots taken.
+- Fixed: ffmpeg could be interrupted by keyboard input in the server terminal → added `-nostdin`.
+- UI: valence and arousal lines now use clearly different colours.
+
 **Next**
-- Download the real weights, switch `USE_MOCK_MODEL=false`, check real predictions in the UI, tag `v0.2-real-model`.
+- Tag `v0.2-real-model`.
 - Day 11: mock C3 + gaps JSON, `mock_loader.py`, fusion rules R1–R6 + tests.
