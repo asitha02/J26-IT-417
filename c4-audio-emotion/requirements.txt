@@ -1,0 +1,35 @@
+# Database: MongoDB driver (includes Atlas "mongodb+srv://" support)
+pymongo==4.18.3
+# Reads secrets from the .env file so they are never written in code
+python-dotenv==1.2.4
+# Downloads audio from YouTube
+yt-dlp==2026.8.19
+# Backend web API (FastAPI also installs pydantic, which checks JSON shapes)
+fastapi==0.143.0
+# Server that runs the FastAPI app
+uvicorn==0.54.0
+# Frontend web page written in Python
+streamlit==1.66.0
+# Interactive charts in the frontend
+plotly==7.1.0
+# Frontend -> backend HTTP calls (already installed by streamlit; listed because app.py imports it)
+requests==2.34.2
+
+# --- Audio processing ---
+# Arrays of numbers (audio samples, embeddings)
+numpy==2.5.4
+# Load audio, resample to 48 kHz, mix to mono
+librosa==1.0.0
+# Reads/writes WAV files (used by librosa)
+soundfile==0.14.0
+
+# --- ML: pretrained CLAP embeddings ---
+# PyTorch CPU build. Install it FIRST with:
+#   venv\Scripts\python -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+# (the normal install would download the much larger GPU version)
+torch==2.14.1
+# Hugging Face library that downloads and runs CLAP (laion/clap-htsat-unfused)
+transformers==5.19.0
+
+# --- Tests ---
+pytest==9.1.1
