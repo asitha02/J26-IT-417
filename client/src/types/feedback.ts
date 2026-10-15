@@ -48,5 +48,5 @@ export interface FeedbackResult {
 
 export interface AnalysisResponse extends FeedbackResult {
   id: string;
-  analyzer: 'llm' | 'lexicon';
+  analyzer: 'llm' | 'lexicon' | 'model';
 }

@@ -8,3 +8,4 @@ __pycache__/
 *.pyc
 training/data/
 training/model_out/
+.claude/settings.local.json

@@ -7,6 +7,12 @@ const TYPE_CLASS: Record<RecommendationType, string> = {
   'Audio Alignment': 'tag-audio',
 };
 
+const ANALYZER_LABELS: Record<string, string> = {
+  llm: 'Claude',
+  model: 'trained model',
+  lexicon: 'keyword rules (offline)',
+};
+
 export function ResultView({ result }: { result: AnalysisResponse }) {
   const { analytics_summary: s } = result;
   const dist = s.overall_sentiment_distribution;
@@ -17,7 +23,7 @@ export function ResultView({ result }: { result: AnalysisResponse }) {
         <h2>Audience summary</h2>
         <p className="muted">
           {s.total_comments_analyzed} comments analysed · analyzer:{' '}
-          <strong>{result.analyzer === 'llm' ? 'Claude' : 'keyword rules (offline)'}</strong>
+          <strong>{ANALYZER_LABELS[result.analyzer] ?? result.analyzer}</strong>
         </p>
         <div className="bar" role="img" aria-label="Sentiment distribution">
           <span className="seg pos" style={{ width: `${dist.positive}%` }} />
