@@ -1,9 +1,31 @@
+# Dependencies
 node_modules/
+package-lock.json.log
+
+# Build & Vite outputs
 dist/
+dist-ssr/
+*.local
+.vite/
+*.tsbuildinfo
+
+# Environment & secrets
 .env
 .env.*
 !.env.example
-*.tsbuildinfo
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 .claude/settings.local.json
+*.log
