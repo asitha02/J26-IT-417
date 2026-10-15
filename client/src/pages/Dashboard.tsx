@@ -86,60 +86,109 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const selectedTitle = videos.find((v) => v.videoId === selected)?.title;
+
   return (
-    <main className="container">
-      <h1>Audience Feedback Mining</h1>
-      <p className="muted">Paste a YouTube link: comments are fetched automatically, analysed, and turned into recommendations.</p>
+    <>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <span className="logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              <path d="M8 9h8M8 13h5" />
+            </svg>
+          </span>
+          <div>
+            <h1>Audience Feedback Mining</h1>
+            <p>Turn YouTube comments into content recommendations</p>
+          </div>
+        </div>
+      </header>
 
-      <form className="card row" onSubmit={importAndAnalyze}>
-        <input
-          type="text"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.youtube.com/watch?v=…"
-          aria-label="YouTube video URL"
-          disabled={busy}
-        />
-        <select
-          value={String(limit)}
-          onChange={(e) => setLimit(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          aria-label="Number of comments to fetch"
-          disabled={busy}
-        >
-          {LIMITS.map((l) => (
-            <option key={l.label} value={String(l.value)}>{l.label}</option>
-          ))}
-        </select>
-        <button type="submit" disabled={busy || !url.trim()}>Import &amp; analyse</button>
-      </form>
+      <main className="container">
+        <form className="card analyze" onSubmit={importAndAnalyze}>
+          <h2>Analyse a video</h2>
+          <p className="muted">Paste a YouTube link. Comments are fetched, analysed and turned into recommendations.</p>
+          <div className="row">
+            <div className="field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+                <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+              </svg>
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=…"
+                aria-label="YouTube video URL"
+                disabled={busy}
+              />
+            </div>
+            <select
+              value={String(limit)}
+              onChange={(e) => setLimit(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              aria-label="Number of comments to fetch"
+              disabled={busy}
+            >
+              {LIMITS.map((l) => (
+                <option key={l.label} value={String(l.value)}>{l.label}</option>
+              ))}
+            </select>
+            <button type="submit" disabled={busy || !url.trim()}>Import &amp; analyse</button>
+          </div>
 
-      {busy && <p className="status">{status || 'Working…'}</p>}
-      {error && <p className="error" role="alert">{error}</p>}
+          {busy && (
+            <div className="status" role="status">
+              <span className="spinner" aria-hidden="true" />
+              {status || 'Working…'}
+            </div>
+          )}
+          {error && <p className="error" role="alert">{error}</p>}
+        </form>
 
-      <section className="card">
-        <h2>Videos</h2>
-        {videos.length === 0 && <p className="muted">No videos yet. Import one above.</p>}
-        <ul className="list">
-          {videos.map((v) => (
-            <li key={v.videoId} className={v.videoId === selected ? 'active' : ''}>
-              <div className="row between">
-                <div>
-                  <strong>{v.title || v.videoId}</strong>
-                  <div className="muted">{v.commentCount} comments{v.topics?.length ? ` · ${v.topics.length} chapters` : ''}</div>
-                </div>
-                <div className="row">
-                  <button type="button" onClick={() => void analyze(v.videoId)} disabled={busy}>View analysis</button>
-                  <button type="button" className="secondary" onClick={() => void analyze(v.videoId, true)} disabled={busy}>
-                    Re-analyse
-                  </button>
-                </div>
+        <div className="layout">
+          <aside className="card sidebar">
+            <div className="card-head">
+              <h3 className="card-title">Videos</h3>
+              <span className="badge">{videos.length}</span>
+            </div>
+            {videos.length === 0 && <p className="muted">No videos yet. Import one above.</p>}
+            <ul className="video-list">
+              {videos.map((v) => (
+                <li key={v.videoId} className={`video-item ${v.videoId === selected ? 'active' : ''}`}>
+                  <div className="video-title">{v.title || v.videoId}</div>
+                  <div className="video-meta">
+                    {v.commentCount.toLocaleString()} comments{v.topics?.length ? ` · ${v.topics.length} chapters` : ''}
+                  </div>
+                  <div className="video-actions">
+                    <button type="button" className="small" onClick={() => void analyze(v.videoId)} disabled={busy}>
+                      View analysis
+                    </button>
+                    <button type="button" className="small secondary" onClick={() => void analyze(v.videoId, true)} disabled={busy}>
+                      Re-analyse
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </aside>
+
+          <section className="content">
+            {result ? (
+              <ResultView result={result} title={selectedTitle} />
+            ) : (
+              <div className="card empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 3v18h18" />
+                  <path d="M7 15l4-4 3 3 5-6" />
+                </svg>
+                <strong>No analysis yet</strong>
+                Import a video or choose one from the list to see audience insights.
               </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {result && <ResultView result={result} />}
-    </main>
+            )}
+          </section>
+        </div>
+      </main>
+    </>
   );
 }
