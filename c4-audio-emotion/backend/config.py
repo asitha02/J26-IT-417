@@ -23,7 +23,8 @@ ANALYSES_COLLECTION = "analyses"
 # --- Emotion model ---
 # "true" (default) = fake MockEmotionModel; "false" = real trained model (Day 10)
 USE_MOCK_MODEL = os.getenv("USE_MOCK_MODEL", "true").lower() == "true"
-MODEL_PATH = os.getenv("MODEL_PATH", "models/c4_emotion_head.pt")
+# Relative paths are taken from the c4-audio-emotion folder, whatever folder uvicorn is started from.
+MODEL_PATH = PROJECT_ROOT / os.getenv("MODEL_PATH", "models/c4_emotion_head.pt")
 
 # --- Audio processing constants (see CLAUDE.md section 9.1) ---
 SEGMENT_SECONDS = 10     # length of each analysis window

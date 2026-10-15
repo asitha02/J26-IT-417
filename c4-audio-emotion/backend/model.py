@@ -10,6 +10,7 @@ Valence = how negative (-1) or positive (+1) the audio feels.
 Arousal = how calm (-1) or energetic (+1) the audio feels.
 """
 import random
+from pathlib import Path
 
 import numpy as np
 
@@ -89,11 +90,58 @@ class MockEmotionModel:
         return results
 
 
-def get_model(use_mock: bool):
+class RealEmotionModel:
+    """
+    The real pipeline: audio windows -> CLAP embeddings (frozen, pretrained)
+    -> my trained BiLSTM+attention head -> valence/arousal per window.
+    """
+
+    def __init__(self, weights_path):
+        import torch
+
+        from backend.emotion_head import EmotionHead
+
+        self.torch = torch
+        checkpoint = torch.load(weights_path, map_location="cpu")  # the file saved by notebook 02
+        self.head = EmotionHead(**checkpoint["config"])            # rebuild the same network...
+        self.head.load_state_dict(checkpoint["state_dict"])        # ...and fill in the trained weights
+        self.head.eval()                                           # inference mode: dropout switched off
+        self.embedder = ClapEmbedder()
+        self.info = {
+            "embedding_model": "clap-htsat-unfused",
+            "head": checkpoint.get("head_name", "bilstm_attention_v1"),
+            "mock": False,
+        }
+
+    def predict(self, segments_audio: list[dict], video_id: str = "") -> list[dict]:
+        """Same interface as MockEmotionModel. video_id is not needed here and is ignored."""
+        embeddings = self.embedder.embed(segments_audio)              # (windows, 512)
+        x = self.torch.tensor(embeddings).unsqueeze(0)                # (1, windows, 512): a batch of one video
+        mask = self.torch.ones(1, len(embeddings), dtype=self.torch.bool)  # every window is real (no padding)
+        with self.torch.no_grad():
+            output = self.head(x, mask)[0].numpy()                    # (windows, 2)
+
+        return [
+            {
+                "start_s": seg["start_s"],
+                "end_s": seg["end_s"],
+                "valence": round(float(v), 3),
+                "arousal": round(float(a), 3),
+            }
+            for seg, (v, a) in zip(segments_audio, output)
+        ]
+
+
+def get_model(use_mock: bool, weights_path=None):
     """Pick the model based on the USE_MOCK_MODEL setting."""
     if use_mock:
         return MockEmotionModel()
-    raise NotImplementedError("RealEmotionModel is added on Day 10. Set USE_MOCK_MODEL=true.")
+    if weights_path is None or not Path(weights_path).exists():
+        raise FileNotFoundError(
+            f"Trained weights not found at '{weights_path}'. Download c4_emotion_head.pt from "
+            "Google Drive (C4/training/) into the models/ folder, or set USE_MOCK_MODEL=true."
+        )
+    return RealEmotionModel(weights_path)
 
 
 # ---------- helpers used after prediction ----------

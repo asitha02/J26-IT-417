@@ -23,7 +23,7 @@ from backend.audio_utils import (
     get_video_info,
     load_audio,
 )
-from backend.config import HOP_SECONDS, SAMPLE_RATE, SEGMENT_SECONDS, USE_MOCK_MODEL
+from backend.config import HOP_SECONDS, MODEL_PATH, SAMPLE_RATE, SEGMENT_SECONDS, USE_MOCK_MODEL
 from backend.fusion import generate_recommendations
 from backend.model import get_model, quadrant_of, summarize
 from backend.schemas import AnalysisResponse, AnalysisSummary, AnalyzeRequest
@@ -32,7 +32,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("c4")
 
 app = FastAPI(title="C4 Audio Emotion API")
-emotion_model = get_model(USE_MOCK_MODEL)  # loaded once at start-up, reused for every request
+emotion_model = get_model(USE_MOCK_MODEL, MODEL_PATH)  # loaded once at start-up, reused for every request
 
 
 @app.exception_handler(PyMongoError)

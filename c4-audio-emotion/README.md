@@ -66,7 +66,14 @@ The page opens at http://localhost:8501. Paste a YouTube link and click **Analyz
 
 ## Model weights
 
-_To be completed (Day 10): Google Drive link for `c4_emotion_head.pt` and where to place it._
+The trained head is not stored in git (model weights are large binary files).
+
+1. Download `c4_emotion_head.pt` from Google Drive: `My Drive/C4/training/` (produced by `notebooks/02_train_emotion_head.ipynb`).
+   _Shared link for the panel/teammates: TODO._
+2. Put it in `c4-audio-emotion/models/c4_emotion_head.pt`.
+3. In `.env` set `USE_MOCK_MODEL=false` and restart the backend.
+
+The first start downloads the pretrained CLAP model (~600 MB) from Hugging Face; later starts take ~10 s.
 
 ## Known limitations
 

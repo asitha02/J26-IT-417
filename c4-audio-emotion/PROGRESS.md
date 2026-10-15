@@ -107,3 +107,42 @@ One entry per day: what was done, what's next, blockers.
 
 **Blockers**
 - DEAM must be downloaded and uploaded to Google Drive (manual step).
+
+## Days 8–9 (prepared) — 16 Oct 2026
+
+**Done**
+- `notebooks/02_train_emotion_head.ipynb`: split by song (70/15/15, seed 42, leakage check), metrics (RMSE, MAE, Pearson, CCC),
+  mean predictor, ridge baseline (closed-form, alpha chosen on validation), BiLSTM and BiLSTM+attention
+  (masked MSE, Adam, early stopping), loss curves, comparison table (CSV + PNG), saves `c4_emotion_head.pt` + training log.
+- Whole notebook tested locally on synthetic data: all cells run, files saved.
+
+**Notebook 01 result (Colab, 15 Oct)**
+- 1802 songs → 11 171 windows, saved to `My Drive/C4/embeddings/deam_clap_windows.npz`.
+- Dynamic labels were already in [-1, 1] (valence -0.83..0.72, arousal -0.77..0.90) → no conversion applied.
+  (The 1–9 scale only applies to DEAM's static per-song ratings, which are not used.)
+
+**Notebook 02 result (Colab, 16 Oct) — test set, songs never seen in training**
+
+| Model | Val RMSE | Val MAE | Val Pearson | Val CCC | Aro RMSE | Aro MAE | Aro Pearson | Aro CCC | Mean CCC |
+|---|---|---|---|---|---|---|---|---|---|
+| Mean predictor | 0.291 | 0.241 | 0.000 | 0.000 | 0.302 | 0.250 | – | 0.000 | 0.000 |
+| Ridge (baseline) | 0.225 | 0.173 | 0.639 | 0.564 | 0.171 | 0.137 | 0.824 | 0.800 | 0.682 |
+| BiLSTM | 0.212 | 0.167 | 0.709 | 0.589 | 0.161 | 0.132 | 0.859 | 0.817 | 0.703 |
+| **BiLSTM + attention** | **0.206** | **0.164** | **0.723** | **0.625** | **0.160** | **0.130** | 0.856 | **0.822** | **0.723** |
+
+- BiLSTM + attention is best → shipped as `c4_emotion_head.pt` (no fallback needed).
+- Sequence context helps most for valence (+0.061 CCC over ridge); arousal gain from attention is small (+0.005).
+- Caveat: single seed (42); multi-seed runs would show whether small differences are significant (future work).
+- Fixed: mean-predictor Pearson showed NaN instead of 0 (display only).
+
+## Day 10 — 16 Oct 2026
+
+**Done**
+- `backend/emotion_head.py`: same `EmotionHead` class as notebook 02 (needed to load the saved weights).
+- `RealEmotionModel` in `model.py`: CLAP embeddings → trained head → valence/arousal per window; `"mock": false`.
+- `get_model` gives a clear message if `models/c4_emotion_head.pt` is missing.
+- Tested the full API path with a test checkpoint (same file format); 22 tests still pass.
+
+**Next**
+- Download the real weights, switch `USE_MOCK_MODEL=false`, check real predictions in the UI, tag `v0.2-real-model`.
+- Day 11: mock C3 + gaps JSON, `mock_loader.py`, fusion rules R1–R6 + tests.
