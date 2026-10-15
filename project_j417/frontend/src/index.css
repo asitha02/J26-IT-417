@@ -109,3 +109,266 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+.generator {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 12px 0 32px;
+  text-align: left;
+}
+
+.generator-heading {
+  margin-bottom: 28px;
+}
+
+.generator-heading h2 {
+  margin: 5px 0 8px;
+}
+
+.generator-heading p,
+.generator-note,
+.generator-footnote {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.generator-eyebrow {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+}
+
+.generator-form,
+.generator-result {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.generator-fieldset {
+  min-width: 0;
+  margin: 0 0 22px;
+  padding: 0;
+  border: 0;
+}
+
+.generator-fieldset legend {
+  margin-bottom: 12px;
+  color: var(--text-h);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.generator-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.generator-option,
+.generator-language {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.generator-option:hover,
+.generator-language:hover {
+  border-color: var(--accent-border);
+}
+
+.generator-option.selected,
+.generator-language.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.generator-option input,
+.generator-language input {
+  margin: 4px 0 0;
+  accent-color: var(--accent);
+}
+
+.generator-option-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.generator-option-copy strong,
+.generator-language > span:first-of-type {
+  color: var(--text-h);
+  font-size: 15px;
+}
+
+.generator-option-copy > span,
+.language-english {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.generator-languages {
+  display: flex;
+  gap: 12px;
+}
+
+.generator-language {
+  min-width: 130px;
+  align-items: center;
+  padding: 10px 14px;
+}
+
+.generator-language input {
+  margin: 0;
+}
+
+.language-english {
+  margin-left: auto;
+}
+
+.generator-submit {
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: #7525b5;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.generator-submit:hover:not(:disabled) {
+  background: #5f1d94;
+}
+
+.generator-submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.generator-submit:focus-visible,
+.generator-option:focus-within,
+.generator-language:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.generator-note {
+  margin-top: 10px;
+}
+
+.generator-status,
+.generator-error {
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.generator-status {
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.generator-error {
+  color: #a21d2d;
+  border: 1px solid #e8aab1;
+  background: #fff3f4;
+}
+
+.generator-result {
+  margin-top: 24px;
+}
+
+.generator-result-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.generator-result-heading h3 {
+  margin: 4px 0 0;
+  color: var(--text-h);
+  font-size: 21px;
+}
+
+.generator-source-count {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-size: 12px;
+}
+
+.generator-output {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 620px;
+  margin: 0;
+  padding: 20px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-h);
+  background: var(--code-bg);
+  font: 15px/1.7 var(--sans);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.generator-output.sinhala {
+  font-size: 17px;
+  line-height: 1.9;
+}
+
+.generator-original {
+  margin-top: 14px;
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.generator-original summary {
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.generator-footnote {
+  margin-top: 12px;
+}
+
+@media (max-width: 680px) {
+  .generator {
+    padding: 8px 0 24px;
+  }
+
+  .generator-form,
+  .generator-result {
+    padding: 16px;
+  }
+
+  .generator-options {
+    grid-template-columns: 1fr;
+  }
+
+  .generator-result-heading {
+    align-items: flex-start;
+  }
+
+  .generator-source-count {
+    margin-top: 4px;
+  }
+}
