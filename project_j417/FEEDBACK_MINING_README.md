@@ -1,21 +1,21 @@
-# J26-IT-417 – Audience feedback mining
+# Component 3 – Audience feedback mining
 
 Analyses YouTube video comments (English, Sinhala, Singlish) for sentiment, emotions and questions.
 
-| Folder | What it is |
+| Folder (inside `project_j417/`) | What it is |
 |---|---|
-| `client/` | React + TypeScript (Vite) dashboard |
-| `server/` | Express + Mongoose API, comment ingestion and analyzers |
+| `frontend/` | React + TypeScript (Vite) dashboard |
+| `backend/` | Express + Mongoose API, comment ingestion and analyzers |
 | `extension/` | Chrome extension that opens the dashboard for the current YouTube video |
 
 ## Run
-Copy `server/.env.example` to `server/.env` and `client/.env.example` to `client/.env`, fill in the values, then:
+Copy `project_j417/backend/.env.example` to `project_j417/backend/.env` and `project_j417/frontend/.env.example` to `project_j417/frontend/.env`, fill in the values, then:
 
 ```
-cd server && npm install && npm run dev      # API on :5000
-cd client && npm install && npm run dev      # UI on :5173
+cd project_j417/backend && npm install && npm run dev      # API on :5000
+cd project_j417/frontend && npm install && npm run dev      # UI on :5173
 ```
-Load `extension/` via `chrome://extensions` → Load unpacked.
+Load `project_j417/extension/` via `chrome://extensions` → Load unpacked.
 
 ## Analyzers
-`ANALYZER` in `server/.env`: `llm` (Claude), `lexicon` (offline word lists), or `auto`.
+`ANALYZER` in `project_j417/backend/.env`: `llm` (Claude), `lexicon` (offline word lists), or `auto`.
