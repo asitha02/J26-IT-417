@@ -110,6 +110,9 @@ def download_audio(video_id: str, out_dir: str) -> Path:
         "outtmpl": str(Path(out_dir) / f"{video_id}.%(ext)s"),
         "download_ranges": download_range_func(None, [(0, MAX_AUDIO_SECONDS)]),
         "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
+        # -nostdin: ffmpeg must not read keyboard input from the terminal the server runs in;
+        # otherwise typing in that terminal during a download can interrupt ffmpeg.
+        "external_downloader_args": {"ffmpeg_i": ["-nostdin"]},
         "quiet": True,
         "no_warnings": True,
     }
