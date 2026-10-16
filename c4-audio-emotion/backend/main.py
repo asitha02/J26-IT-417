@@ -18,13 +18,13 @@ from backend.audio_utils import (
     AudioDownloadError,
     VideoUnavailableError,
     cut_segments,
-    download_audio,
+    download_complete_audio,
     extract_video_id,
     get_video_info,
-    load_audio,
 )
 from backend.config import HOP_SECONDS, MODEL_PATH, SAMPLE_RATE, SEGMENT_SECONDS, USE_MOCK_MODEL
 from backend.fusion import generate_recommendations
+from backend.mock_loader import load_c3_sentiment, load_knowledge_gaps
 from backend.model import get_model, quadrant_of, summarize
 from backend.schemas import AnalysisResponse, AnalysisSummary, AnalyzeRequest
 
@@ -72,8 +72,7 @@ def analyze(request: AnalyzeRequest):
     #    TemporaryDirectory deletes the WAV file automatically when the block ends.
     try:
         with tempfile.TemporaryDirectory() as tmp:
-            wav_path = download_audio(video_id, tmp)
-            audio = load_audio(wav_path)
+            audio = download_complete_audio(video_id, tmp, info["duration"])
     except AudioDownloadError as e:
         logger.error("Audio download failed for %s: %s", video_id, e)
         raise HTTPException(status_code=502, detail=f"Could not download the audio: {e}")
@@ -83,24 +82,29 @@ def analyze(request: AnalyzeRequest):
     predictions = emotion_model.predict(segments_audio, video_id=video_id)
     segments = [{**p, "quadrant": quadrant_of(p["valence"], p["arousal"])} for p in predictions]
 
+    # 6. Load the (dummy) inputs from other components and apply the fusion rules.
+    c3_input = load_c3_sentiment(video_id)
+    gaps_input = load_knowledge_gaps(video_id)
+    analyzed_seconds = round(len(audio) / SAMPLE_RATE, 2)
+
     analysis = {
         "video_id": video_id,
         "youtube_url": f"https://www.youtube.com/watch?v={video_id}",
         "title": info["title"],
-        "analyzed_seconds": round(len(audio) / SAMPLE_RATE, 2),
+        "analyzed_seconds": analyzed_seconds,
         "segment_seconds": SEGMENT_SECONDS,
         "hop_seconds": HOP_SECONDS,
         "model_info": emotion_model.info,
         "segments": segments,
         "overall": summarize(segments),
-        "c3_input": {},          # Day 11: dummy C3 sentiment
-        "gaps_input": {},        # Day 11: dummy knowledge gaps
-        "recommendations": generate_recommendations(segments),  # Day 11: + C3 and gap rules
+        "c3_input": c3_input,       # DUMMY C3 sentiment ("mock": true)
+        "gaps_input": gaps_input,   # DUMMY knowledge gaps ("mock": true)
+        "recommendations": generate_recommendations(segments, c3_input, gaps_input, analyzed_seconds),
         "status": "complete",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    # 6. Save (replaces any older analysis of the same video) and return.
+    # 7. Save (replaces any older analysis of the same video) and return.
     db.save_analysis(analysis)
     logger.info("Analysed %s (%d segments, mock=%s)", video_id, len(segments), emotion_model.info["mock"])
     return db.get_analysis(video_id)

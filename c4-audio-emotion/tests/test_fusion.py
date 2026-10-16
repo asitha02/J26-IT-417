@@ -1,39 +1,165 @@
 """
-Automatic tests for the fusion rules.
+Automatic tests for the fusion rules R1-R6 (made-up timelines, no internet or database needed).
 Run from the c4-audio-emotion folder:  venv\\Scripts\\python -m pytest
 """
 from backend.audio_utils import make_segment_times
-from backend.fusion import find_runs, generate_recommendations
+from backend.fusion import (
+    confidence,
+    find_runs,
+    generate_recommendations,
+    merge_overlapping,
+    rule_r1_low_energy,
+    rule_r2_tense_audio,
+    rule_r3_flat_profile,
+    rule_r4_complex_content_audio,
+    rule_r5_audio_complaints,
+    rule_r6_requested_topics,
+)
 
 
-def timeline(low_windows: set) -> list[dict]:
-    """A 3-minute timeline: arousal -0.6 for window numbers in low_windows, 0.2 elsewhere."""
+def timeline(arousal_for, valence_for=lambda i: 0.1) -> list[dict]:
+    """A 3-minute timeline (35 windows); arousal/valence chosen per window number i."""
     segs = make_segment_times(180)
     for i, s in enumerate(segs):
-        s["valence"] = 0.1
-        s["arousal"] = -0.6 if i in low_windows else 0.2
+        s["arousal"], s["valence"] = arousal_for(i), valence_for(i)
     return segs
 
 
+def varied(i):
+    """A lively arousal pattern (high variance) so R3 doesn't fire by accident."""
+    return [0.5, -0.1, 0.3, 0.0][i % 4]
+
+
+NO_C3 = {}
+NEG_C3 = {
+    "sentiment_score": -0.5, "comment_count": 100,
+    "top_complaints": ["music too loud", "slow pacing", "bad thumbnail"],
+    "requested_topics": ["Hawking radiation", "neutron stars"],
+    "timestamped_feedback": [{"t_s": 120, "text": "this part drags", "sentiment": -0.6},
+                             {"t_s": 20, "text": "great intro", "sentiment": 0.8}],
+}
+GAPS = {"gaps": [{"topic": "Hawking radiation", "start_s": 120, "end_s": 165, "severity": "medium",
+                  "description": "not explained"}]}
+
+
+# ---------- helpers ----------
+
 def test_find_runs_groups_consecutive_items():
-    items = [{"v": x} for x in [0, 1, 1, 0, 1]]
-    runs = find_runs(items, lambda s: s["v"] == 1)
+    runs = find_runs([{"v": x} for x in [0, 1, 1, 0, 1]], lambda s: s["v"] == 1)
     assert [len(r) for r in runs] == [2, 1]
 
 
+def test_confidence_grows_with_evidence_and_is_capped():
+    assert confidence(0) == 0.5
+    assert confidence(1) == 0.7
+    assert confidence(10) == 0.95
+
+
+# ---------- R1 low energy ----------
+
+LOW_100_145 = lambda i: -0.6 if 20 <= i <= 27 else varied(i)   # windows 100 s -> 145 s
+
+
 def test_r1_long_low_energy_section_is_reported():
-    recs = generate_recommendations(timeline(set(range(20, 28))))  # 100 s -> 145 s
+    recs = rule_r1_low_energy(timeline(LOW_100_145), NO_C3)
     assert len(recs) == 1
-    rec = recs[0]
-    assert rec["rule_id"] == "R1_low_energy"
-    assert (rec["start_s"], rec["end_s"]) == (100, 145)
-    assert rec["id"] == "rec_001"
-    assert rec["evidence"]                                          # never empty
+    assert (recs[0]["start_s"], recs[0]["end_s"]) == (100, 145)
+    assert recs[0]["severity"] == "medium" and recs[0]["confidence"] == 0.5
+
+
+def test_r1_becomes_high_with_nearby_negative_comment():
+    rec = rule_r1_low_energy(timeline(LOW_100_145), NEG_C3)[0]
+    assert rec["severity"] == "high"
+    assert rec["confidence"] == 0.7
+    assert any("this part drags" in e for e in rec["evidence"])
+    assert not any("great intro" in e for e in rec["evidence"])     # positive / far-away comment ignored
 
 
 def test_r1_short_dip_is_ignored():
-    assert generate_recommendations(timeline({3, 4})) == []        # only 15 s
+    assert rule_r1_low_energy(timeline(lambda i: -0.6 if i in (3, 4) else varied(i)), NO_C3) == []
 
 
-def test_r1_nothing_on_energetic_audio():
-    assert generate_recommendations(timeline(set())) == []
+# ---------- R2 tense audio ----------
+
+def test_r2_tense_section_reported_and_high_with_audio_complaint():
+    segs = timeline(lambda i: 0.8 if 10 <= i <= 14 else varied(i),
+                    lambda i: -0.6 if 10 <= i <= 14 else 0.1)            # 50 s -> 80 s
+    assert rule_r2_tense_audio(segs, NO_C3)[0]["severity"] == "medium"
+    rec = rule_r2_tense_audio(segs, NEG_C3)[0]
+    assert rec["severity"] == "high"
+    assert any("music too loud" in e for e in rec["evidence"])
+
+
+def test_r2_needs_both_high_arousal_and_negative_valence():
+    segs = timeline(lambda i: 0.8, lambda i: 0.5)                        # energetic but positive
+    assert rule_r2_tense_audio(segs, NO_C3) == []
+
+
+# ---------- R3 flat profile ----------
+
+def test_r3_flat_energy_is_reported():
+    recs = rule_r3_flat_profile(timeline(lambda i: 0.1), 180)
+    assert len(recs) == 1 and recs[0]["severity"] == "low"
+
+
+def test_r3_varied_energy_is_fine():
+    assert rule_r3_flat_profile(timeline(varied), 180) == []
+
+
+# ---------- R4 intense audio over complex content ----------
+
+def test_r4_gap_with_intense_audio_is_reported():
+    segs = timeline(lambda i: 0.7 if 24 <= i <= 30 else -0.1)             # intense 120 s -> 160 s
+    rec = rule_r4_complex_content_audio(segs, GAPS, NO_C3)[0]
+    assert (rec["start_s"], rec["end_s"]) == (120, 165)
+    assert rec["confidence"] == 0.7                                       # audio + gap
+    assert any("Hawking radiation" in e for e in rec["evidence"])
+
+
+def test_r4_calm_audio_during_gap_is_fine():
+    assert rule_r4_complex_content_audio(timeline(lambda i: 0.0), GAPS, NO_C3) == []
+
+
+# ---------- R5 audio complaints ----------
+
+def test_r5_negative_audience_with_audio_complaints():
+    rec = rule_r5_audio_complaints(NEG_C3, 180)[0]
+    complaints = [e for e in rec["evidence"] if e.startswith("Complaint")]
+    assert len(complaints) == 2                                           # "bad thumbnail" is not audio
+    assert rec["confidence"] == 0.7
+
+
+def test_r5_not_triggered_when_audience_is_positive():
+    assert rule_r5_audio_complaints({**NEG_C3, "sentiment_score": 0.4}, 180) == []
+
+
+# ---------- R6 requested topics ----------
+
+def test_r6_only_lists_topics_the_video_does_not_cover():
+    rec = rule_r6_requested_topics(NEG_C3, GAPS, 180)[0]
+    assert rec["evidence"] == ["Requested topic: 'neutron stars'"]        # Hawking radiation is a gap topic
+
+
+# ---------- combining ----------
+
+def test_merge_overlapping_same_type():
+    a = {"type": "x", "start_s": 0, "end_s": 30, "severity": "medium", "confidence": 0.5, "evidence": ["a"]}
+    b = {"type": "x", "start_s": 20, "end_s": 50, "severity": "high", "confidence": 0.7, "evidence": ["b"]}
+    merged = merge_overlapping([a, b])
+    assert len(merged) == 1
+    assert (merged[0]["start_s"], merged[0]["end_s"], merged[0]["severity"]) == (0, 50, "high")
+    assert merged[0]["evidence"] == ["a", "b"]
+
+
+def test_full_run_is_sorted_numbered_and_explained():
+    recs = generate_recommendations(timeline(LOW_100_145), NEG_C3, GAPS, 180)
+    order = {"high": 0, "medium": 1, "low": 2}
+    assert [order[r["severity"]] for r in recs] == sorted(order[r["severity"]] for r in recs)
+    assert [r["id"] for r in recs] == [f"rec_{i:03d}" for i in range(1, len(recs) + 1)]
+    assert all(r["evidence"] for r in recs)                               # never a black box
+    assert {"R1_low_energy", "R5_audio_complaints", "R6_requested_topics"} <= {r["rule_id"] for r in recs}
+
+
+def test_nothing_on_a_healthy_video():
+    happy = {"sentiment_score": 0.6, "top_complaints": [], "requested_topics": [], "timestamped_feedback": []}
+    assert generate_recommendations(timeline(varied), happy, {"gaps": []}, 180) == []

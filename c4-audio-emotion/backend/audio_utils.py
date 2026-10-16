@@ -155,3 +155,32 @@ def cut_segments(audio: np.ndarray) -> list[dict]:
             chunk = np.pad(chunk, (0, window_len - len(chunk)))  # add silence at the end
         segments.append({**times, "audio": chunk})
     return segments
+
+
+def download_complete_audio(video_id: str, out_dir: str, video_duration: float, attempts: int = 3) -> np.ndarray:
+    """
+    Download + load the audio, and CHECK it is complete: we expect
+    min(video length, MAX_AUDIO_SECONDS) seconds.
+
+    A dropped internet connection can make a download fail (ffmpeg crashes) or stop
+    early without any error. Both are retried, up to `attempts` times in total.
+    If it still fails, raise a clear error instead of silently analysing part of the video.
+    """
+    expected = min(video_duration, MAX_AUDIO_SECONDS)
+    problem = ""
+    for attempt in range(1, attempts + 1):
+        for f in Path(out_dir).glob(f"{video_id}.*"):
+            f.unlink()                     # remove any partial file from a previous attempt
+        try:
+            audio = load_audio(download_audio(video_id, out_dir))
+        except AudioDownloadError as e:
+            problem = str(e)
+            logger.warning("Download attempt %d/%d for %s failed: %s", attempt, attempts, video_id, e)
+            continue
+        got = len(audio) / SAMPLE_RATE
+        if got >= expected - 2:           # allow 2 s tolerance for rounding
+            return audio
+        problem = f"only {got:.0f} s of the expected {expected:.0f} s were downloaded"
+        logger.warning("Download attempt %d/%d for %s incomplete: %s", attempt, attempts, video_id, problem)
+    raise AudioDownloadError(f"Download failed after {attempts} attempts ({problem}). "
+                             "The internet connection may be unstable. Please try again.")

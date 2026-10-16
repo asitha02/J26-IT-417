@@ -150,4 +150,27 @@ One entry per day: what was done, what's next, blockers.
 
 **Next**
 - Tag `v0.2-real-model`.
+
+## Day 11 — 16 Oct 2026
+
+**Done**
+- `mock_data/component3_sentiment.json`: 3 dummy C3 variants (negative → "How A Star Is Born", mixed → "The Life of Stars",
+  positive → "Me at the zoo") + default for any other video. `mock_data/knowledge_gaps.json`: dummy gaps per video + default.
+- `backend/mock_loader.py`: the only place that knows the dummy file formats; every input is marked `"mock": true`.
+- `backend/fusion.py`: rules R1–R6, confidence scoring (0.5 + 0.2 per agreeing signal, max 0.95), merging of overlapping
+  recommendations of the same type, sorting by severity then confidence. All thresholds in `config.py`.
+- `/analyze` stores `c3_input` and `gaps_input` and runs all rules.
+- UI: full dummy-data section (clearly labelled), "whole video" ranges, rule id on each card, only section-specific
+  recommendations are shaded on the timeline.
+- Reliability: downloads are checked for completeness and retried up to 3 times (a dropped connection could crash ffmpeg
+  or silently cut the audio short, e.g. 104 s instead of 180 s). Correction: the earlier "-nostdin" change was not the fix.
+- 44 automatic tests pass (17 new for fusion + loader, 4 for download retries).
+- Real run, 3 videos, real model: all complete; R5, R3, R6 fire as expected per dummy variant.
+
+**Finding (to discuss / tune)**
+- On these speech-heavy science videos the model's predictions stay close to neutral (arousal ≈ -0.06..+0.22),
+  so the absolute thresholds of R1 (-0.3), R2 (+0.6) and R4 (+0.4) never trigger, while R3 (flat profile) triggers on every video.
+
+**Next**
+- Decide threshold approach; Day 12: full flow checks, error handling, screenshots.
 - Day 11: mock C3 + gaps JSON, `mock_loader.py`, fusion rules R1–R6 + tests.
