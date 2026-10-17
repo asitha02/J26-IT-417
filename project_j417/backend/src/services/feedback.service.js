@@ -2,9 +2,11 @@ const Video = require('../models/Video');
 const Comment = require('../models/Comment');
 const FeedbackAnalysis = require('../models/FeedbackAnalysis');
 const analyzer = require('./analyzers');
+const { anthropicModel } = require('../config/env');
 const { EMOTIONS } = require('./analyzers/constants');
 const fusion = require('./fusion.service');
 const recommendations = require('./recommendation.service');
+const viewerGuide = require('./viewerGuide.service');
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
@@ -65,7 +67,10 @@ exports.analyze = async ({ videoIds, force = false }) => {
 
   const analytics_summary = summarise(comments);
   const insights = fusion.fuse(videos, byVideo);
-  const actionable_recommendations = await recommendations.generate(insights, analytics_summary);
+  const [actionable_recommendations, viewer_guide] = await Promise.all([
+    recommendations.generate(insights, analytics_summary),
+    viewerGuide.generate(insights, analytics_summary, comments),
+  ]);
 
   const result = {
     analytics_summary,
@@ -73,9 +78,10 @@ exports.analyze = async ({ videoIds, force = false }) => {
       topic_or_timestamp, detected_issue_or_interest, supporting_evidence,
     })),
     actionable_recommendations,
+    viewer_guide,
   };
   const saved = await FeedbackAnalysis.create({ videoIds, analyzer: analyzer.name, result });
-  return { id: saved._id, analyzer: analyzer.name, ...result };
+  return { id: saved._id, analyzer: analyzer.name, model: analyzer.name === 'llm' ? anthropicModel : null, ...result };
 };
 
 exports.getById = (id) => FeedbackAnalysis.findById(id).lean();

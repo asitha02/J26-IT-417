@@ -40,13 +40,23 @@ export interface Recommendation {
   rationale: string;
 }
 
+export interface ViewerGuide {
+  overview: string;
+  before_you_watch: string[];
+  watch_out_for: { topic: string; tip: string }[];
+  highlights: { topic: string; why: string }[];
+  common_questions: string[];
+}
+
 export interface FeedbackResult {
   analytics_summary: AnalyticsSummary;
   content_gaps_and_insights: ContentInsight[];
   actionable_recommendations: Recommendation[];
+  viewer_guide?: ViewerGuide | null;
 }
 
 export interface AnalysisResponse extends FeedbackResult {
   id: string;
   analyzer: 'llm' | 'lexicon';
+  model?: string | null;
 }
