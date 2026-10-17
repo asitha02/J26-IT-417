@@ -19,3 +19,6 @@ Load `project_j417/extension/` via `chrome://extensions` → Load unpacked.
 
 ## Analyzers
 `ANALYZER` in `project_j417/backend/.env`: `llm` (Claude), `lexicon` (offline word lists), or `auto`.
+
+## AI usage
+- **At runtime:** comments are classified (sentiment, emotions, questions) and recommendations are written by Claude via the Anthropic API (`ANALYZER=llm`, or `auto` with an API key). No model is trained in this project. Without a key, a keyword-rule fallback (`lexicon`) is used; the UI shows which analyzer produced each result.
