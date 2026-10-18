@@ -156,11 +156,11 @@ C3 (audience feedback) and the knowledge-gap detection belong to other component
 
 ## 11. Reliability decisions
 
-- **Only the first 3 minutes are downloaded** (yt-dlp + ffmpeg), not the whole video, which keeps long videos manageable.
+- **Only the first 3 minutes are downloaded, and quickly.** Letting ffmpeg stream the first 3 minutes took ~90 s, because YouTube limits streaming speed (to about 2× playback speed). Instead, the backend asks YouTube's server for just the **first few MB of the audio file** in one normal HTTP request (a "Range" request; ~3–4 MB even for a 77-minute video), and ffmpeg converts that piece to 48 kHz mono WAV. A full analysis went from **~105 s to ~9 s**. If the fast method isn't possible (e.g. the file size is unknown), the backend falls back to the slower streaming method automatically.
 - **Downloads are checked for completeness and retried (up to 3 attempts).** A dropped internet connection was found to either crash ffmpeg or silently cut the audio short (e.g. 104 s instead of 180 s). Analysing part of a video without saying so would be a hidden error, so the backend retries and otherwise returns a clear message.
 - **Temporary audio files are deleted automatically** after each analysis.
 - **Clear error messages** for: invalid URL, unavailable/private video, live streams, failed download, database down, backend not running.
-- **47 automatic tests** (`pytest`) cover URL parsing, windowing, padding, download retries, every fusion rule and the dummy loader.
+- **49 automatic tests** (`pytest`) cover URL parsing, windowing, padding, download retries, every fusion rule and the dummy loader.
 
 ---
 

@@ -12,7 +12,7 @@ uvicorn==0.54.0
 streamlit==1.66.0
 # Interactive charts in the frontend
 plotly==7.1.0
-# Frontend -> backend HTTP calls (already installed by streamlit; listed because app.py imports it)
+# HTTP calls: frontend -> backend, and the fast partial audio download in the backend
 requests==2.34.2
 
 # --- Audio processing ---

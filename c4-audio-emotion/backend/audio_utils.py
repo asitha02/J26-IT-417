@@ -1,16 +1,24 @@
 """
 Audio helpers: YouTube URL checking, video info, downloading and cutting audio.
 
-Pipeline: download_audio() -> load_audio() -> cut_segments()
-          (WAV file)          (numbers)       (10 s windows, 5 s hop)
+Pipeline: download_complete_audio() -> cut_segments()
+          (first 3 min as numbers)     (10 s windows, 5 s hop)
+
+Two ways to download (download_complete_audio tries them in this order):
+  1. download_audio_fast(): asks YouTube's server for only the first few MB of the
+     audio file in one normal HTTP request (~3 s).
+  2. download_audio(): lets ffmpeg stream the first 3 minutes (~90 s, because YouTube
+     limits streaming speed). Slower, but works for every format: the fallback.
 """
 import logging
 import re
+import subprocess
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import librosa
 import numpy as np
+import requests
 import yt_dlp
 from yt_dlp.utils import download_range_func
 
@@ -128,6 +136,50 @@ def download_audio(video_id: str, out_dir: str) -> Path:
     return wav_path
 
 
+def download_audio_fast(video_id: str, out_dir: str) -> Path:
+    """
+    Fast download: request only the first bytes of the audio file (an HTTP "Range" request),
+    roughly enough for MAX_AUDIO_SECONDS plus a safety margin, then let ffmpeg convert
+    that piece to a 48 kHz mono WAV of at most MAX_AUDIO_SECONDS. Returns the WAV path.
+    Raises AudioDownloadError if anything is missing, so the caller can fall back.
+    """
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "format": "bestaudio"}) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+    except yt_dlp.utils.DownloadError as e:
+        raise AudioDownloadError(f"Could not read the audio formats: {e}") from e
+
+    fmt = info["requested_formats"][0] if info.get("requested_formats") else info
+    size = fmt.get("filesize") or fmt.get("filesize_approx")
+    duration = info.get("duration")
+    if not fmt.get("url") or fmt.get("protocol") not in ("https", "http") or not size or not duration:
+        raise AudioDownloadError("Fast download not possible for this video's audio format.")
+
+    # Bytes for the first MAX_AUDIO_SECONDS (+5 s), +10 % and +200 kB margin because the bitrate varies.
+    share = min(1.0, (MAX_AUDIO_SECONDS + 5) / duration)
+    n_bytes = min(int(size), int(size * share * 1.1) + 200_000)
+    headers = {**fmt.get("http_headers", {}), "Range": f"bytes=0-{n_bytes - 1}"}
+    try:
+        response = requests.get(fmt["url"], headers=headers, timeout=60)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise AudioDownloadError(f"Fast download failed: {e}") from e
+
+    part_path = Path(out_dir) / f"{video_id}.{fmt.get('ext', 'audio')}"
+    part_path.write_bytes(response.content)
+    wav_path = Path(out_dir) / f"{video_id}.wav"
+    # -nostdin: don't read keyboard input; -t: keep at most MAX_AUDIO_SECONDS; -ac 1 -ar: mono, 48 kHz
+    result = subprocess.run(
+        ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(part_path),
+         "-t", str(MAX_AUDIO_SECONDS), "-ac", "1", "-ar", str(SAMPLE_RATE), str(wav_path)],
+        capture_output=True, text=True,
+    )
+    part_path.unlink(missing_ok=True)
+    if result.returncode != 0 or not wav_path.exists():
+        raise AudioDownloadError(f"ffmpeg could not convert the downloaded audio: {result.stderr[-200:]}")
+    return wav_path
+
+
 def load_audio(path) -> np.ndarray:
     """
     Read an audio file as numbers: one float per sample, 48 000 per second, mono.
@@ -162,20 +214,23 @@ def download_complete_audio(video_id: str, out_dir: str, video_duration: float, 
     Download + load the audio, and CHECK it is complete: we expect
     min(video length, MAX_AUDIO_SECONDS) seconds.
 
-    A dropped internet connection can make a download fail (ffmpeg crashes) or stop
-    early without any error. Both are retried, up to `attempts` times in total.
-    If it still fails, raise a clear error instead of silently analysing part of the video.
+    Attempt 1 uses the fast method; if it fails or is incomplete, the remaining attempts use
+    the slower ffmpeg streaming method. A dropped internet connection can make a download
+    fail (ffmpeg crashes) or stop early without any error; both are retried, up to
+    `attempts` times in total. If it still fails, raise a clear error instead of
+    silently analysing part of the video.
     """
     expected = min(video_duration, MAX_AUDIO_SECONDS)
+    methods = [download_audio_fast] + [download_audio] * (attempts - 1)
     problem = ""
-    for attempt in range(1, attempts + 1):
+    for attempt, method in enumerate(methods, start=1):
         for f in Path(out_dir).glob(f"{video_id}.*"):
             f.unlink()                     # remove any partial file from a previous attempt
         try:
-            audio = load_audio(download_audio(video_id, out_dir))
+            audio = load_audio(method(video_id, out_dir))
         except AudioDownloadError as e:
             problem = str(e)
-            logger.warning("Download attempt %d/%d for %s failed: %s", attempt, attempts, video_id, e)
+            logger.warning("Download attempt %d/%d (%s) for %s failed: %s", attempt, attempts, method.__name__, video_id, e)
             continue
         got = len(audio) / SAMPLE_RATE
         if got >= expected - 2:           # allow 2 s tolerance for rounding

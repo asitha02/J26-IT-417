@@ -239,7 +239,7 @@ if st.button("Analyze", type="primary"):
     if not youtube_url.strip():
         st.error("Please paste a YouTube URL first.")
     else:
-        with st.spinner("Analysing... downloading audio and running the model (1-3 minutes for a new video)"):
+        with st.spinner("Analysing... downloading audio and running the model (usually 10-20 s for a new video)"):
             data, error = call_backend("POST", "/analyze", json={"youtube_url": youtube_url, "force_reanalyze": force})
         if error:
             st.error(error)

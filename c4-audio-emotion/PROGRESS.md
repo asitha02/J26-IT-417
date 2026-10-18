@@ -184,6 +184,11 @@ One entry per day: what was done, what's next, blockers.
 - R1/R4 count any negative comment near a section as support, without checking what the comment is about
   (e.g. a loudness complaint can raise a low-energy recommendation). Topic matching belongs to C3 (future work).
 
+- Drafted `docs/DESIGN_DECISIONS.md` and `docs/CUSTOMIZATION_TABLE.md`; README limitations, results and tests sections.
+- **Speed fix:** an analysis took ~2 min, measured as 96 s download + 3.7 s model. New fast download requests only the first
+  ~3–4 MB of the audio file (HTTP Range) and converts it with ffmpeg; the old streaming download stays as automatic fallback.
+  Full analysis now **~9 s** (cached reopen 0.1 s). 49 tests pass.
+
 **Next**
-- Re-analyse the 3 demo videos in the UI, check error messages, screenshots; Day 13 tests on more videos.
+- Re-analyse the 3 demo videos in the UI, screenshots; Day 13 tests on more videos; tag `v0.3-fusion-ui`.
 - Day 11: mock C3 + gaps JSON, `mock_loader.py`, fusion rules R1–R6 + tests.

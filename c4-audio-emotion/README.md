@@ -97,4 +97,4 @@ Full explanation: [`docs/DESIGN_DECISIONS.md`](docs/DESIGN_DECISIONS.md). Pretra
 ```
 venv\Scripts\python -m pytest
 ```
-47 automatic tests (URL parsing, windowing, download retries, fusion rules R1–R6, dummy-data loader).
+49 automatic tests (URL parsing, windowing, fast download + fallback + retries, fusion rules R1–R6, dummy-data loader).

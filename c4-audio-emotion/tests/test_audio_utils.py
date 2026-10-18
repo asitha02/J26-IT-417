@@ -103,8 +103,20 @@ def fake_downloads(monkeypatch, results):
             raise AudioDownloadError("ffmpeg exited with code 3436169992")
         return result
 
-    monkeypatch.setattr(au, "download_audio", fake_download)
+    used = []
+
+    def fake_fast(video_id, out_dir):
+        used.append("fast")
+        return fake_download(video_id, out_dir)
+
+    def fake_slow(video_id, out_dir):
+        used.append("slow")
+        return fake_download(video_id, out_dir)
+
+    monkeypatch.setattr(au, "download_audio_fast", fake_fast)
+    monkeypatch.setattr(au, "download_audio", fake_slow)
     monkeypatch.setattr(au, "load_audio", lambda seconds: np.zeros(int(seconds * SAMPLE_RATE), np.float32))
+    return used
 
 
 def test_complete_download_is_accepted(monkeypatch, tmp_path):
@@ -131,3 +143,15 @@ def test_gives_up_with_clear_error_after_three_attempts(monkeypatch, tmp_path):
 def test_short_video_is_not_mistaken_for_incomplete(monkeypatch, tmp_path):
     fake_downloads(monkeypatch, [19])                         # the whole video is only 19 s
     assert len(download_complete_audio("x", tmp_path, 19)) == 19 * SAMPLE_RATE
+
+
+def test_fast_download_first_then_slow_fallback(monkeypatch, tmp_path):
+    used = fake_downloads(monkeypatch, ["crash", 180])        # fast method fails, slow one works
+    download_complete_audio("x", tmp_path, 964)
+    assert used == ["fast", "slow"]
+
+
+def test_fast_download_is_enough_when_it_works(monkeypatch, tmp_path):
+    used = fake_downloads(monkeypatch, [180])
+    download_complete_audio("x", tmp_path, 964)
+    assert used == ["fast"]
