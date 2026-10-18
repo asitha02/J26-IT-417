@@ -167,13 +167,14 @@ C3 (audience feedback) and the knowledge-gap detection belong to other component
 ## 12. Known limitations (honest)
 
 1. **Domain mismatch:** DEAM is **music only**; YouTube science videos mix **speech + music**. Predictions describe the overall audio mood, and they cluster near neutral. Separating music from speech (Demucs) is future work.
-2. **Short training sequences:** most DEAM clips give ~5 windows; inference uses 35. The model still produced plausible timelines, but this mismatch was not formally evaluated.
-3. **Noisy labels:** valence/arousal ratings are subjective; annotators disagree.
-4. **One random seed:** small differences between models may not be significant.
-5. **Thresholds tuned on few videos:** relative delta 0.04 and R3 std 0.03 are starting values.
-6. **Comment relevance isn't checked:** a negative comment near a section counts as support even if it is about something else (e.g. loudness instead of pace). Topic matching is C3's job (future work).
-7. **Dummy C3 and knowledge-gap data:** the fusion logic is real; its inputs are placeholders.
-8. **Only the first 3 minutes** of each video are analysed.
+2. **Valence leans negative on speech:** on all 7 test videos the mean valence was negative (-0.19 to -0.29), while arousal varied sensibly (calm narration -0.13, lively animated explainer +0.28). Likely a bias from training on music only (speech lacks musical cues like major/minor key). This is another reason the rules compare each video with its own average.
+3. **Short training sequences:** most DEAM clips give ~5 windows; inference uses 35. The model still produced plausible timelines, but this mismatch was not formally evaluated.
+4. **Noisy labels:** valence/arousal ratings are subjective; annotators disagree.
+5. **One random seed:** small differences between models may not be significant.
+6. **Thresholds tuned on few videos:** relative delta 0.04 and R3 std 0.03 are starting values.
+7. **Comment relevance isn't checked:** a negative comment near a section counts as support even if it is about something else (e.g. loudness instead of pace). Topic matching is C3's job (future work).
+8. **Dummy C3 and knowledge-gap data:** the fusion logic is real; its inputs are placeholders.
+9. **Only the first 3 minutes** of each video are analysed.
 
 ---
 

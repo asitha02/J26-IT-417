@@ -189,6 +189,25 @@ One entry per day: what was done, what's next, blockers.
   ~3–4 MB of the audio file (HTTP Range) and converts it with ffmpeg; the old streaming download stays as automatic fallback.
   Full analysis now **~9 s** (cached reopen 0.1 s). 49 tests pass.
 
-**Next**
-- Re-analyse the 3 demo videos in the UI, screenshots; Day 13 tests on more videos; tag `v0.3-fusion-ui`.
+## Day 13 — 18 Oct 2026
+
+**Done**
+- Tested 5 new science videos (never seen before) with the real model:
+  4 analysed in 15–19 s each (incl. a 4-hour video), 1 blocked by YouTube → clear "not available" message, no crash.
+- Model separates content styles sensibly: lively animated explainer arousal +0.28 … calm narration compilation −0.13.
+- Error cases checked: non-YouTube link (400), random text (400), fake video id (422), missing field (422),
+  unknown saved id (404); playlist-style and shorts links work; reopening a saved analysis 0.09 s.
+- Finding: valence negative on all videos (−0.19 … −0.29) → added to limitations.
+
+## Day 14 — 18 Oct 2026
+
+**Done**
+- Fresh-clone test: cloned `component4` from GitHub into an empty folder, followed only the README:
+  install OK (`pip check` clean), DB check passed, yt-dlp check passed, 49 tests pass, backend analysed a video
+  with the real model in 14 s, Streamlit page loads. Clone contained no `.env` and no weights (as intended).
+- DESIGN_DECISIONS, CUSTOMIZATION_TABLE and README complete.
+
+**Remaining (manual)**
+- Add the Google Drive share link for `c4_emotion_head.pt` in the README.
+- Final screenshots for slides; tags `v0.1`, `v0.2`, `v0.3`, `v1.0`.
 - Day 11: mock C3 + gaps JSON, `mock_loader.py`, fusion rules R1–R6 + tests.
