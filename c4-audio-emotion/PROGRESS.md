@@ -171,6 +171,19 @@ One entry per day: what was done, what's next, blockers.
 - On these speech-heavy science videos the model's predictions stay close to neutral (arousal ≈ -0.06..+0.22),
   so the absolute thresholds of R1 (-0.3), R2 (+0.6) and R4 (+0.4) never trigger, while R3 (flat profile) triggers on every video.
 
+## Day 12 — 18 Oct 2026
+
+**Done**
+- Rules R1, R2, R4 switched to **relative thresholds** (compare with the video's own average, delta 0.04);
+  R3 uses arousal std < 0.03 with ≥ 6 windows. Recorded in CLAUDE.md section 10.
+- 47 tests pass (new: small dip in a near-neutral video triggers R1; shifting a whole video gives the same result; R3 minimum length).
+- Re-ran the rules on the saved real predictions: "The Life of Stars" and "How A Star Is Born" now each get 5 recommendations,
+  including R4 (intense audio during a knowledge gap + matching viewer comment, confidence 0.9) and R1 (calmer sections).
+
+**Known limitation**
+- R1/R4 count any negative comment near a section as support, without checking what the comment is about
+  (e.g. a loudness complaint can raise a low-energy recommendation). Topic matching belongs to C3 (future work).
+
 **Next**
-- Decide threshold approach; Day 12: full flow checks, error handling, screenshots.
+- Re-analyse the 3 demo videos in the UI, check error messages, screenshots; Day 13 tests on more videos.
 - Day 11: mock C3 + gaps JSON, `mock_loader.py`, fusion rules R1–R6 + tests.

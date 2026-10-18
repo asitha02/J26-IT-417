@@ -313,6 +313,7 @@ Implemented in `backend/fusion.py` as small, separate, unit-tested rule function
 | R5_audio_complaints | C3 sentiment < -0.3 AND complaints contain audio keywords (music, loud, volume, audio, boring, slow) | The matched complaints | Review mixing levels and pacing overall |
 | R6_requested_topics | C3 requested topics not covered by any detected gap/segment topic | Topic list | Consider a follow-up video or section on these topics (low priority) |
 
+- **Change (18 Oct 2026, agreed):** R1, R2 and R4 use **relative** thresholds: a window is compared with the video's own average (low energy = arousal < average − 0.04; tense = arousal > average + 0.04 and valence < average − 0.04; intense over a gap = arousal > average + 0.04). R3 uses arousal standard deviation < 0.03 (≥ 6 windows). Reason: on speech + music videos the model's predictions stay near neutral (arousal ≈ −0.1..+0.2), so the absolute values in the table above never triggered. See `docs/DESIGN_DECISIONS.md`.
 - `confidence` (0–1): start at 0.5 for audio-only evidence; add for each corroborating independent signal (C3 comment nearby, knowledge gap overlap); cap at 0.95.
 - Merge overlapping recommendations of the same type; sort by severity, then confidence.
 - Every recommendation must include human-readable evidence (explainable, not a black box).

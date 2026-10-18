@@ -9,6 +9,8 @@ Why rules (not another ML model)? They are transparent: every recommendation say
 exactly WHICH evidence triggered it, so a creator (and the panel) can check it.
 
 Each rule is a small separate function returning a list of recommendations.
+The audio rules (R1, R2, R4) are RELATIVE: they compare each window with this video's own
+average valence/arousal (see RELATIVE_DELTA in config.py for why).
 Confidence starts at BASE_CONFIDENCE for one source of evidence and rises by
 CORROBORATION_BONUS for every independent signal that agrees, capped at MAX_CONFIDENCE.
 """
@@ -19,13 +21,11 @@ from backend.config import (
     CORROBORATION_BONUS,
     MAX_CONFIDENCE,
     NEGATIVE_SENTIMENT,
-    R1_LOW_AROUSAL,
     R1_MIN_DURATION_S,
-    R2_HIGH_AROUSAL,
-    R2_LOW_VALENCE,
     R2_MIN_DURATION_S,
-    R3_MIN_AROUSAL_VARIANCE,
-    R4_INTENSE_AROUSAL,
+    R3_MIN_AROUSAL_STD,
+    R3_MIN_WINDOWS,
+    RELATIVE_DELTA,
 )
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
@@ -61,6 +61,11 @@ def find_runs(segments: list[dict], condition) -> list[list[dict]]:
     return runs
 
 
+def video_average(segments: list[dict], key: str) -> float:
+    """This video's own average valence or arousal: the reference point for the relative rules."""
+    return sum(s[key] for s in segments) / len(segments)
+
+
 def negative_comments_near(c3: dict, start: float, end: float) -> list[dict]:
     """C3 comments with negative sentiment inside [start - 15 s, end + 15 s]."""
     return [
@@ -87,14 +92,19 @@ def make_rec(rule_id, rec_type, severity, start, end, title, evidence, suggestio
 # ---------- the six rules ----------
 
 def rule_r1_low_energy(segments: list[dict], c3: dict) -> list[dict]:
-    """R1: arousal < -0.3 for >= 30 s. High severity if a negative viewer comment is nearby."""
+    """
+    R1: arousal clearly BELOW this video's own average (by more than RELATIVE_DELTA) for >= 30 s,
+    i.e. a section noticeably calmer than the rest. High severity if a negative viewer comment is nearby.
+    """
     recs = []
-    for run in find_runs(segments, lambda s: s["arousal"] < R1_LOW_AROUSAL):
+    avg = video_average(segments, "arousal")
+    for run in find_runs(segments, lambda s: s["arousal"] < avg - RELATIVE_DELTA):
         start, end = run[0]["start_s"], run[-1]["end_s"]
         if end - start < R1_MIN_DURATION_S:
             continue
         mean_arousal = sum(s["arousal"] for s in run) / len(run)
-        evidence = [f"Arousal below {R1_LOW_AROUSAL} for {end - start:.0f} s (mean {mean_arousal:.2f})"]
+        evidence = [f"Arousal {avg - mean_arousal:.2f} below this video's average ({mean_arousal:+.2f} vs "
+                    f"{avg:+.2f}) for {end - start:.0f} s"]
         comments = negative_comments_near(c3, start, end)
         evidence += [comment_evidence(c) for c in comments]
         recs.append(make_rec(
@@ -107,17 +117,22 @@ def rule_r1_low_energy(segments: list[dict], c3: dict) -> list[dict]:
 
 
 def rule_r2_tense_audio(segments: list[dict], c3: dict) -> list[dict]:
-    """R2: arousal > 0.6 and valence < -0.3 for >= 20 s. High if viewers complain about audio."""
+    """
+    R2: more energetic AND more negative than this video's average (each by more than RELATIVE_DELTA)
+    for >= 20 s. High severity if viewers complain about the audio.
+    """
     recs = []
     complaints = audio_complaints(c3)
-    tense = lambda s: s["arousal"] > R2_HIGH_AROUSAL and s["valence"] < R2_LOW_VALENCE
+    avg_a, avg_v = video_average(segments, "arousal"), video_average(segments, "valence")
+    tense = lambda s: s["arousal"] > avg_a + RELATIVE_DELTA and s["valence"] < avg_v - RELATIVE_DELTA
     for run in find_runs(segments, tense):
         start, end = run[0]["start_s"], run[-1]["end_s"]
         if end - start < R2_MIN_DURATION_S:
             continue
         mean_v = sum(s["valence"] for s in run) / len(run)
         mean_a = sum(s["arousal"] for s in run) / len(run)
-        evidence = [f"Tense audio for {end - start:.0f} s (mean arousal {mean_a:+.2f}, mean valence {mean_v:+.2f})"]
+        evidence = [f"Tenser than the rest of the video for {end - start:.0f} s: arousal {mean_a:+.2f} "
+                    f"(video average {avg_a:+.2f}), valence {mean_v:+.2f} (video average {avg_v:+.2f})"]
         evidence += [f"Viewer complaint: '{c}'" for c in complaints]
         recs.append(make_rec(
             "R2_tense_audio", "tense_audio_segment", "high" if complaints else "medium", start, end,
@@ -129,18 +144,18 @@ def rule_r2_tense_audio(segments: list[dict], c3: dict) -> list[dict]:
 
 
 def rule_r3_flat_profile(segments: list[dict], analyzed_seconds: float) -> list[dict]:
-    """R3: arousal barely changes across the whole clip (low variance) -> monotonous."""
-    if len(segments) < 3:          # too short to judge variety
+    """R3: arousal barely changes across the whole clip (small standard deviation) -> monotonous."""
+    if len(segments) < R3_MIN_WINDOWS:     # too short to judge variety
         return []
     arousal = [s["arousal"] for s in segments]
     mean = sum(arousal) / len(arousal)
-    variance = sum((a - mean) ** 2 for a in arousal) / len(arousal)
-    if variance >= R3_MIN_AROUSAL_VARIANCE:
+    std = (sum((a - mean) ** 2 for a in arousal) / len(arousal)) ** 0.5   # typical distance from the average
+    if std >= R3_MIN_AROUSAL_STD:
         return []
     return [make_rec(
         "R3_flat_profile", "flat_energy_profile", "low", 0, analyzed_seconds,
         "Audio energy stays the same throughout",
-        [f"Arousal variance {variance:.4f} (below {R3_MIN_AROUSAL_VARIANCE}); energy ranges only "
+        [f"Arousal standard deviation {std:.3f} (below {R3_MIN_AROUSAL_STD}); energy ranges only "
          f"{min(arousal):+.2f} to {max(arousal):+.2f}"],
         "Vary the music energy between sections (e.g. calmer for explanations, livelier for key moments) to hold attention.",
         confidence(0),
@@ -148,17 +163,22 @@ def rule_r3_flat_profile(segments: list[dict], analyzed_seconds: float) -> list[
 
 
 def rule_r4_complex_content_audio(segments: list[dict], gaps: dict, c3: dict) -> list[dict]:
-    """R4: a knowledge gap (hard, unexplained content) overlaps intense audio (arousal > 0.4)."""
+    """
+    R4: a knowledge gap (hard, unexplained content) overlaps audio that is more intense than this
+    video's average (arousal > average + RELATIVE_DELTA).
+    """
     recs = []
+    avg = video_average(segments, "arousal") if segments else 0
     for gap in gaps.get("gaps", []):
         overlapping = [s for s in segments
-                       if s["start_s"] < gap["end_s"] and s["end_s"] > gap["start_s"] and s["arousal"] > R4_INTENSE_AROUSAL]
+                       if s["start_s"] < gap["end_s"] and s["end_s"] > gap["start_s"] and s["arousal"] > avg + RELATIVE_DELTA]
         if not overlapping:
             continue
         peak = max(s["arousal"] for s in overlapping)
         evidence = [
             f"Knowledge gap '{gap['topic']}' at {mmss(gap['start_s'])}–{mmss(gap['end_s'])}: {gap['description']}",
-            f"Arousal up to {peak:+.2f} during this explanation ({len(overlapping)} intense window(s))",
+            f"Arousal up to {peak:+.2f} during this explanation, above the video's average of {avg:+.2f} "
+            f"({len(overlapping)} intense window(s))",
         ]
         comments = negative_comments_near(c3, gap["start_s"], gap["end_s"])
         evidence += [comment_evidence(c) for c in comments]
@@ -229,6 +249,8 @@ def generate_recommendations(segments: list[dict], c3: dict = None, gaps: dict =
     if analyzed_seconds is None:
         analyzed_seconds = segments[-1]["end_s"] if segments else 0
 
+    if not segments:
+        return []
     recs = (
         rule_r1_low_energy(segments, c3)
         + rule_r2_tense_audio(segments, c3)

@@ -37,13 +37,17 @@ MOCK_DATA_DIR = PROJECT_ROOT / "mock_data"
 
 # --- Fusion rule thresholds (CLAUDE.md section 10) ---
 # These are starting values to tune later, not proven truths.
-R1_LOW_AROUSAL = -0.3        # arousal below this counts as "low energy"
-R1_MIN_DURATION_S = 30       # low energy must last at least this long to be reported
-R2_HIGH_AROUSAL = 0.6        # R2 "tense audio": arousal above this ...
-R2_LOW_VALENCE = -0.3        # ... AND valence below this ...
-R2_MIN_DURATION_S = 20       # ... for at least this long
-R3_MIN_AROUSAL_VARIANCE = 0.01   # arousal variance below this = "flat" energy over the whole clip
-R4_INTENSE_AROUSAL = 0.4     # arousal above this during a knowledge gap = intense audio over hard content
+#
+# RELATIVE thresholds (changed 18 Oct): R1, R2 and R4 compare each window with THIS video's own
+# average, not with fixed values. Reason: on speech + music science videos the model's predictions
+# stay near neutral (arousal roughly -0.1..+0.2), so fixed thresholds like -0.3 never triggered.
+# A section is "low energy" when it is clearly calmer than the rest of the same video, which is
+# also how a viewer experiences pacing.
+RELATIVE_DELTA = 0.04        # how far (in valence/arousal units) a window must be from the video average
+R1_MIN_DURATION_S = 30       # R1 "low energy": arousal < average - delta for at least this long
+R2_MIN_DURATION_S = 20       # R2 "tense": arousal > average + delta AND valence < average - delta, this long
+R3_MIN_AROUSAL_STD = 0.03    # R3 "flat": arousal standard deviation over the clip below this
+R3_MIN_WINDOWS = 6           # R3 needs at least 6 windows (35 s) to judge variety
 NEGATIVE_SENTIMENT = -0.3    # a C3 comment / overall score below this counts as negative
 COMMENT_WINDOW_S = 15        # a comment within ±15 s of a section counts as "about" that section
 AUDIO_KEYWORDS = ["music", "loud", "volume", "audio", "boring", "slow"]

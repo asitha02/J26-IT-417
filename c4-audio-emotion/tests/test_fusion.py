@@ -75,6 +75,22 @@ def test_r1_becomes_high_with_nearby_negative_comment():
     assert not any("great intro" in e for e in rec["evidence"])     # positive / far-away comment ignored
 
 
+def test_r1_detects_a_small_dip_in_a_near_neutral_video():
+    # Like real science videos: arousal around +0.10, dipping to +0.03 for 30 s (100 s -> 130 s).
+    # The old absolute rule (arousal < -0.3) would never fire here; the relative rule does.
+    recs = rule_r1_low_energy(timeline(lambda i: 0.03 if 20 <= i <= 24 else 0.10), NO_C3)
+    assert [(r["start_s"], r["end_s"]) for r in recs] == [(100, 130)]
+    assert "below this video's average" in recs[0]["evidence"][0]
+
+
+def test_rules_judge_each_video_against_itself():
+    # Same shape, whole video shifted up by 0.4 -> exactly the same recommendations.
+    shape = lambda i: 0.03 if 20 <= i <= 24 else 0.10
+    low = rule_r1_low_energy(timeline(shape), NO_C3)
+    high = rule_r1_low_energy(timeline(lambda i: shape(i) + 0.4), NO_C3)
+    assert [(r["start_s"], r["end_s"]) for r in low] == [(r["start_s"], r["end_s"]) for r in high]
+
+
 def test_r1_short_dip_is_ignored():
     assert rule_r1_low_energy(timeline(lambda i: -0.6 if i in (3, 4) else varied(i)), NO_C3) == []
 
@@ -104,6 +120,13 @@ def test_r3_flat_energy_is_reported():
 
 def test_r3_varied_energy_is_fine():
     assert rule_r3_flat_profile(timeline(varied), 180) == []
+
+
+def test_r3_needs_enough_windows_to_judge():
+    short = make_segment_times(19)                     # only 3 windows
+    for s in short:
+        s["arousal"], s["valence"] = 0.1, 0.0
+    assert rule_r3_flat_profile(short, 19) == []
 
 
 # ---------- R4 intense audio over complex content ----------

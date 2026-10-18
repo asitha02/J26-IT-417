@@ -1,7 +1,17 @@
 # Customization Table — C4
 
-What I used as a pretrained component, and what I built or changed on top of it.
+The supervisor allowed pretrained models **as long as I add my own customization**.
+This table separates what I **used** from what I **built or changed**.
 
-| Pretrained component | What I changed / added | Why |
-|----------------------|------------------------|-----|
-| _TODO_ | _TODO_ | _TODO_ |
+| Pretrained / existing component | What I changed or added | Why |
+|---|---|---|
+| **CLAP** audio model (`laion/clap-htsat-unfused`, LAION), used frozen | Built the audio pipeline around it: 48 kHz mono resampling, 10 s windows with 5 s hop, silence padding of the last window, batched embedding. Trained my **own model on top** of its 512-number embeddings (next row). | Training an audio model from scratch isn't feasible with ~1,800 labelled songs; CLAP gives strong general audio features, and my head learns the emotion task. |
+| **PyTorch building blocks** (LSTM, MultiheadAttention, LayerNorm, Linear) | Designed and trained my own **emotion head**: BiLSTM (128 units per direction) → self-attention with padding mask + residual connection + LayerNorm → 2 outputs with tanh. Masked MSE loss, Adam, dropout 0.3, early stopping. Saved as `c4_emotion_head.pt` (`bilstm_attention_v1`). | This is the trained, original model of the component. It predicts continuous valence/arousal per window using the context of the whole sequence. |
+| **DEAM dataset** (music with emotion annotations) | Own preparation: used only the annotated regions, windowing identical to the backend, label = average of the dynamic ratings in each window, checked the real label scale, **split by song** to prevent leakage, embeddings computed once and stored on Drive. | Training data must match how the backend sees YouTube audio, and an honest test needs songs the model never saw. |
+| *(none: my own experiment)* | **Baseline + ablation**: mean predictor, closed-form ridge regression (alpha chosen on validation), BiLSTM, BiLSTM + attention, all on the same test songs with RMSE, MAE, Pearson and CCC. Fixed seed, logged hyperparameters, loss curves and comparison table. | Shows each part of my model is worth adding (mean CCC 0.682 → 0.703 → 0.723). |
+| *(none: my own design)* | **Fusion rules R1–R6** combining audio emotion, audience sentiment and knowledge gaps; **relative thresholds** (each video compared with its own average); confidence scoring (0.5 + 0.2 per agreeing signal, max 0.95); severity upgrades; merging and sorting; human-readable evidence for every recommendation. | The prescriptive part of the research gap: turning analytics into concrete, explainable advice for creators. |
+| **yt-dlp + ffmpeg** (download tools) | Download only the first 3 minutes of audio; check the result is complete; retry up to 3 times on dropped connections; delete temporary files automatically. | Long videos stay fast, and unstable connections never cause a silent half-analysis. |
+| **FastAPI, Streamlit, Plotly, MongoDB** (frameworks) | My API (`/analyze`, `/analyses`, `/analyses/{id}`, `/health`) with the agreed JSON contract, MongoDB caching by `video_id`, clear error messages; my UI: emotion timeline with highlighted sections, valence–arousal map, dummy-data panel, recommendation cards, JSON download. | A working end-to-end demo that the final team dashboard can consume as clean JSON. |
+| *(none: placeholders for teammates' work)* | Dummy C3 sentiment (3 variants) and dummy knowledge gaps, isolated in `mock_loader.py` and marked `"mock": true`. | Lets the fusion be built and demoed before C3 and the knowledge graph are ready, and makes swapping in real data a one-file change. |
+
+**In one sentence for the viva:** *CLAP gives me general audio features; I built the emotion model on top of it (trained and evaluated against a baseline), and everything that turns those emotions into recommendations (the rules, the fusion with other signals, confidence and evidence) is my own design.*

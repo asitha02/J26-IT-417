@@ -77,4 +77,24 @@ The first start downloads the pretrained CLAP model (~600 MB) from Hugging Face;
 
 ## Known limitations
 
-_To be completed. See `docs/DESIGN_DECISIONS.md`._
+- Trained on DEAM (music only); YouTube science videos mix speech and music, so predictions describe the overall audio mood and stay close to neutral.
+- Audience sentiment (C3) and knowledge gaps are **dummy data** (`mock_data/`, marked `"mock": true`) until those components are connected.
+- Only the first 3 minutes of each video are analysed.
+- Rule thresholds are starting values to tune; results come from a single training seed.
+
+Full explanation: [`docs/DESIGN_DECISIONS.md`](docs/DESIGN_DECISIONS.md). Pretrained vs. own work: [`docs/CUSTOMIZATION_TABLE.md`](docs/CUSTOMIZATION_TABLE.md).
+
+## Results (DEAM test songs, never seen in training)
+
+| Model | Valence CCC | Arousal CCC | Mean CCC |
+|---|---|---|---|
+| Ridge regression (baseline) | 0.564 | 0.800 | 0.682 |
+| BiLSTM | 0.589 | 0.817 | 0.703 |
+| **BiLSTM + attention** | **0.625** | **0.822** | **0.723** |
+
+## Tests
+
+```
+venv\Scripts\python -m pytest
+```
+47 automatic tests (URL parsing, windowing, download retries, fusion rules R1–R6, dummy-data loader).
