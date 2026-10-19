@@ -211,3 +211,21 @@ One entry per day: what was done, what's next, blockers.
 - Add the Google Drive share link for `c4_emotion_head.pt` in the README.
 - Final screenshots for slides; tags `v0.1`, `v0.2`, `v0.3`, `v1.0`.
 - Day 11: mock C3 + gaps JSON, `mock_loader.py`, fusion rules R1–R6 + tests.
+
+## Day 15 — 20 Oct 2026 (two-part component, branch `feature/two-part-ui`)
+
+**Block 1: music/speech separation**
+- Installed `demucs` 4.1.0 (dry run first: keeps torch 2.14.1, adds 5 small packages). `backend/separation.py`:
+  speech = vocals, background = drums + bass + other; 48 kHz mono in and out. Switch `USE_SOURCE_SEPARATION`.
+- Real check: 180 s separated in ~122 s on CPU (NFR ≤ 2× runtime met); "Black Holes Explained": music 11 dB under the voice overall.
+
+**Block 2: measured audio problems + music-only emotion**
+- `backend/audio_problems.py`: per window speech/music loudness (dB), music-minus-speech, clipping %, silence;
+  problems "music too loud under narration" (≥ 15 s, music < 10 dB below voice; high if within 3 dB), clipping, dead air (≥ 10 s).
+- 58 tests pass (6 new with synthetic tones of known loudness).
+- Real results: "Black Holes Explained" → music 3 dB LOUDER than the voice in 00:00–00:20 (high); rest well mixed
+  (median −15 dB). Calm narration video: no problems.
+- **Finding (mixed vs. music-only emotion):** arousal drops strongly after separation (+0.28 → −0.02; −0.13 → −0.28):
+  the narrator's voice was inflating the predicted energy. Valence stays negative (−0.22 → −0.24), so the
+  negative-valence bias is not caused by speech. Loudness normalisation of the music track changed almost nothing
+  (arousal −0.02 → −0.01), so CLAP is largely level-invariant and no normalisation step is used.

@@ -56,6 +56,15 @@ NEGATIVE_SENTIMENT = -0.3    # a C3 comment / overall score below this counts as
 COMMENT_WINDOW_S = 15        # a comment within ±15 s of a section counts as "about" that section
 AUDIO_KEYWORDS = ["music", "loud", "volume", "audio", "boring", "slow"]
 
+# --- Audio problem checks (Part 1), loudness in dB relative to full scale (0 dB = maximum) ---
+SPEECH_PRESENT_DB = -35          # speech track louder than this = someone is talking in this window
+MUSIC_UNDER_SPEECH_LIMIT_DB = -10    # music should be MORE than 10 dB quieter than the speech
+MUSIC_NEARLY_AS_LOUD_DB = -3     # music within 3 dB of the speech (or louder) = high severity
+MUSIC_LOUD_MIN_DURATION_S = 15   # report "music too loud" only if it lasts this long
+CLIPPING_PCT = 0.1               # more than 0.1 % of samples at maximum level = distortion
+SILENCE_DB = -50                 # whole mix quieter than this = silence ("dead air")
+SILENCE_MIN_DURATION_S = 10      # report silence only if it lasts this long
+
 # --- Confidence scoring (0..1) ---
 BASE_CONFIDENCE = 0.5        # one source of evidence (e.g. audio only)
 CORROBORATION_BONUS = 0.2    # added for each independent signal that agrees (comment, gap)
