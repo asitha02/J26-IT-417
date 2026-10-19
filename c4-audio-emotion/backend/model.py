@@ -60,6 +60,52 @@ class ClapEmbedder:
             embeddings.append(vectors.numpy())
         return np.concatenate(embeddings, axis=0)
 
+    def embed_text(self, texts: list[str]) -> np.ndarray:
+        """
+        CLAP was trained on audio + TEXT pairs, so it can also turn a description like
+        "calm ambient music" into 512 numbers in the same space as the audio embeddings.
+        Returns (len(texts), 512), each vector scaled to length 1.
+        """
+        inputs = self.processor.tokenizer(texts, padding=True, return_tensors="pt")
+        with self.torch.no_grad():
+            output = self.model.get_text_features(**inputs)
+        vectors = (output if self.torch.is_tensor(output) else output.pooler_output).numpy()
+        return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+    def describe(self, audio_embeddings: np.ndarray, labels: list[str]):
+        """
+        Zero-shot description: compare each audio embedding with each text label (cosine similarity)
+        and turn the similarities into percentages (softmax, using CLAP's own learned temperature).
+        Returns (best label per window, overall top 3 as [{"label", "score"}]).
+        """
+        text = self.embed_text(labels)
+        audio = audio_embeddings / np.linalg.norm(audio_embeddings, axis=1, keepdims=True)
+        scale = float(self.model.logit_scale_a.exp())          # how "sharp" CLAP's matching is
+
+        per_window = [labels[i] for i in (audio @ text.T).argmax(axis=1)]
+        overall = audio.mean(axis=0)
+        overall /= np.linalg.norm(overall)
+        logits = scale * (text @ overall)
+        probs = np.exp(logits - logits.max())
+        probs /= probs.sum()
+        top = probs.argsort()[::-1][:3]
+        return per_window, [{"label": labels[i], "score": round(float(probs[i]), 3)} for i in top]
+
+
+# Descriptions the background music is compared with (Part 1, "what the music sounds like").
+# The last one catches tracks that are mostly leftover speech or have no real music.
+MUSIC_LABELS = [
+    "calm ambient music",
+    "soft piano music",
+    "tense dramatic cinematic music",
+    "epic orchestral music",
+    "mysterious suspenseful music",
+    "upbeat energetic electronic music",
+    "happy cheerful music",
+    "sad melancholic music",
+    "a person talking with no music",
+]
+
 
 class MockEmotionModel:
     """Fake values: a 'random walk' that drifts a little at each segment."""
@@ -89,6 +135,14 @@ class MockEmotionModel:
             })
         return results
 
+    def analyze(self, segments_audio: list[dict], video_id: str = ""):
+        """Same as RealEmotionModel.analyze(): the mock has no embeddings."""
+        return self.predict(segments_audio, video_id), None
+
+    def describe(self, embeddings, labels=None):
+        """The mock can't describe music: no labels at all."""
+        return [], []
+
 
 class RealEmotionModel:
     """
@@ -115,13 +169,21 @@ class RealEmotionModel:
 
     def predict(self, segments_audio: list[dict], video_id: str = "") -> list[dict]:
         """Same interface as MockEmotionModel. video_id is not needed here and is ignored."""
+        return self.analyze(segments_audio)[0]
+
+    def describe(self, embeddings, labels=MUSIC_LABELS):
+        """What the audio sounds like in words (see ClapEmbedder.describe)."""
+        return self.embedder.describe(embeddings, labels)
+
+    def analyze(self, segments_audio: list[dict], video_id: str = ""):
+        """Like predict(), but also returns the CLAP embeddings so they can be reused (e.g. describe())."""
         embeddings = self.embedder.embed(segments_audio)              # (windows, 512)
         x = self.torch.tensor(embeddings).unsqueeze(0)                # (1, windows, 512): a batch of one video
         mask = self.torch.ones(1, len(embeddings), dtype=self.torch.bool)  # every window is real (no padding)
         with self.torch.no_grad():
             output = self.head(x, mask)[0].numpy()                    # (windows, 2)
 
-        return [
+        predictions = [
             {
                 "start_s": seg["start_s"],
                 "end_s": seg["end_s"],
@@ -130,6 +192,7 @@ class RealEmotionModel:
             }
             for seg, (v, a) in zip(segments_audio, output)
         ]
+        return predictions, embeddings
 
 
 def get_model(use_mock: bool, weights_path=None):

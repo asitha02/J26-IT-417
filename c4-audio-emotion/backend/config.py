@@ -18,7 +18,8 @@ load_dotenv(PROJECT_ROOT / ".env")
 # --- MongoDB (shared team Atlas database) ---
 MONGODB_URI = os.getenv("MONGODB_URI")  # secret: never print this
 MONGODB_DB = os.getenv("MONGODB_DB", "project_j417")
-ANALYSES_COLLECTION = "analyses"
+AUDIO_ANALYSES_COLLECTION = "audio_analyses"              # Part 1 results
+RECOMMENDATIONS_COLLECTION = "recommendation_reports"    # Part 2 results
 
 # --- Emotion model ---
 # "true" (default) = fake MockEmotionModel; "false" = real trained model (Day 10)

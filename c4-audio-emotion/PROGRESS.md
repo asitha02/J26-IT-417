@@ -229,3 +229,14 @@ One entry per day: what was done, what's next, blockers.
   the narrator's voice was inflating the predicted energy. Valence stays negative (−0.22 → −0.24), so the
   negative-valence bias is not caused by speech. Loudness normalisation of the music track changed almost nothing
   (arousal −0.02 → −0.01), so CLAP is largely level-invariant and no normalisation step is used.
+
+**Block 3: Part 1 endpoint + page**
+- CLAP zero-shot music description (`ClapEmbedder.describe`): music embeddings compared with 9 text labels
+  ("tense dramatic cinematic music", "calm ambient music", ...), softmax with CLAP's own temperature.
+- `backend/audio_analysis.py` (Part 1 pipeline, testable without internet), `POST /audio/analyze`,
+  `GET /audio/analyses[/{id}]`; collection `audio_analyses`. `db.py` now takes a collection name. Old `/analyze` removed.
+- Frontend split into two pages (`st.navigation`): `audio_analysis.py` (Part 1) and `recommendations.py` (Part 2, next).
+  Page 1: music description, music emotion timeline with unseparated audio as dotted lines, valence–arousal map,
+  voice vs. music loudness chart, problem cards with "watch at" links, link to Part 2, JSON download.
+- 60 tests pass. Real run "Black Holes Explained": 98 s; music sounds like "tense dramatic cinematic" (29 %);
+  problem: music too loud under the narration 00:00–00:20 (high).

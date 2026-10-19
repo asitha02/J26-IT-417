@@ -55,7 +55,8 @@ Backend (from the `c4-audio-emotion` folder):
 ```
 venv\Scripts\python -m uvicorn backend.main:app --reload
 ```
-Open http://localhost:8000/docs to try the endpoints (`/health`, `POST /analyze`, `/analyses`, `/analyses/{video_id}`).
+Open http://localhost:8000/docs to try the endpoints: Part 1 `POST /audio/analyze`, `GET /audio/analyses[/{video_id}]`; Part 2 `POST /recommendations/{video_id}` (see CLAUDE.md 8.6).
+The first start loads Demucs (~80 MB download once) and CLAP; with `USE_SOURCE_SEPARATION=true` an analysis takes about 2 minutes.
 With `USE_MOCK_MODEL=true` the emotion values are fake and marked `"mock": true`.
 
 Frontend (second terminal, same folder, backend must be running):
