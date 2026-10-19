@@ -81,8 +81,16 @@ Supervisor requirement: show ~50% of C4 as a **working UI (frontend + backend)**
 - Re-opening a past analysis from MongoDB without recomputing.
 - Clean JSON output that the final dashboard could later consume.
 
+### Added to scope (agreed 19 Oct 2026): two-part component, see section 8.6
+- **Part 1, Affective Audio Analysis** (own page): Demucs music/speech separation, emotion of the **background music**
+  (mixed audio kept for comparison), measured audio problems (music vs. speech loudness, clipping, silence),
+  CLAP text-based description of the music.
+- **Part 2, Content Enhancement Recommendations** (own page): fuses Part 1 with dummy C1 (transcript sections),
+  C2 (knowledge gaps) and C3 (audience sentiment) into descriptive + prescriptive recommendations, plain-language
+  evidence, timestamp links, and segment-level validation against C3 comments (with a random baseline).
+
 ### Out of scope (do NOT build unless I ask)
-- Demucs, VGGish, openSMILE, PMEmo training, CNN front-end
+- VGGish, openSMILE, PMEmo training, CNN front-end
 - PyKEEN / TransE / Neo4j
 - Real integration with C1, C2, C3
 - The merged summary dashboard
@@ -256,6 +264,31 @@ Create 3 variants (negative, mixed, positive) so the UI and rules can be demoed 
 ### 8.5 MongoDB
 - Database `research_project`, collection `analyses`. One document per analysis, same shape as the 8.1 response plus Mongo's `_id`.
 - Unique index on `video_id` (re-analysis replaces the document). Serialize `_id` out of API responses.
+- (Changed: the team database `project_j417` is used instead of `research_project`.)
+
+### 8.6 Two-part design (agreed 19 Oct 2026, replaces `POST /analyze`)
+
+**Part 1: Affective Audio Analysis** (descriptive), collection `audio_analyses`
+- `POST /audio/analyze` with `{ "youtube_url", "force_reanalyze" }`; `GET /audio/analyses`; `GET /audio/analyses/{video_id}`
+- Response = 8.1 fields `video_id, youtube_url, title, analyzed_seconds, segment_seconds, hop_seconds, model_info, segments, overall, status, created_at`, plus:
+  - `separation`: `{ "method": "htdemucs" | "none", "speech_db", "music_db" }`
+  - each segment additionally: `mixed_valence, mixed_arousal` (emotion of the unseparated audio, for comparison),
+    `speech_db, music_db, music_minus_speech_db, clipping_pct, silent, music_label`; `valence/arousal` = **background music**
+  - `overall_mixed`: same shape as `overall`, for the unseparated audio
+  - `music_description`: `[ { "label", "score" } ]` (top 3, CLAP text matching)
+  - `audio_problems`: `[ { "type", "start_s", "end_s", "severity", "description", "evidence": [] } ]`
+
+**Part 2: Content Enhancement Recommendations** (descriptive + prescriptive), collection `recommendation_reports`
+- `POST /recommendations/{video_id}` (needs a Part 1 result; 404 otherwise); `GET /recommendations/{video_id}`
+- Response: `video_id, youtube_url, title, created_at, status`,
+  `inputs` = `{ "audio_analysis_created_at", "c1_input", "c2_input", "c3_input" }` (dummy ones carry `"mock": true`),
+  `section_summaries` (descriptive, one per C1 section),
+  `recommendations` (8.1 recommendation shape **plus** `"link"`: YouTube URL with `&t=<start>s`),
+  `validation` = `{ "flagged_segments", "agreeing_segments", "agreement", "random_baseline", "lift", "mock_data": true }`
+
+**Dummy C1 input**: `mock_data/component1_transcript.json`:
+`{ "video_id", "sections": [ { "start_s", "end_s", "topic", "content_type": "hook|explanation|example|summary" } ] }`
+**Dummy C2 input**: `mock_data/knowledge_gaps.json` (format of 8.4, attributed to C2's knowledge base).
 
 ---
 

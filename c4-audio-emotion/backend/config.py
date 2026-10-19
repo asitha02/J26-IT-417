@@ -26,6 +26,10 @@ USE_MOCK_MODEL = os.getenv("USE_MOCK_MODEL", "true").lower() == "true"
 # Relative paths are taken from the c4-audio-emotion folder, whatever folder uvicorn is started from.
 MODEL_PATH = PROJECT_ROOT / os.getenv("MODEL_PATH", "models/c4_emotion_head.pt")
 
+# --- Music/speech separation (Demucs) ---
+# "true" (default) = separate narration from background music; "false" = analyse the mixed audio (faster)
+USE_SOURCE_SEPARATION = os.getenv("USE_SOURCE_SEPARATION", "true").lower() == "true"
+
 # --- Audio processing constants (see CLAUDE.md section 9.1) ---
 SEGMENT_SECONDS = 10     # length of each analysis window
 HOP_SECONDS = 5          # step between window starts (windows overlap by 5 s)

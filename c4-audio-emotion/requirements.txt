@@ -30,6 +30,8 @@ soundfile==0.14.0
 torch==2.14.1
 # Hugging Face library that downloads and runs CLAP (laion/clap-htsat-unfused)
 transformers==5.19.0
+# Separates narration (speech) from background music (pretrained htdemucs model)
+demucs==4.1.0
 
 # --- Tests ---
 pytest==9.1.1
