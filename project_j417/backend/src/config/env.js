@@ -12,8 +12,9 @@ module.exports = {
   mongoDb: process.env.MONGODB_DB || undefined,
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   // Audience feedback mining
-  analyzer: (process.env.ANALYZER || 'auto').toLowerCase(), // auto | llm | lexicon
+  analyzer: (process.env.ANALYZER || 'auto').toLowerCase(), // auto | llm | lexicon | bert
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5',
+  bertServiceUrl: process.env.BERT_SERVICE_URL || 'http://localhost:8001',
   youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
 };

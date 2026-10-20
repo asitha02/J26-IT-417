@@ -29,3 +29,6 @@ Thumbs.db
 .idea/
 .claude/settings.local.json
 *.log
+
+# Personal notes
+VIVA_NOTES.md

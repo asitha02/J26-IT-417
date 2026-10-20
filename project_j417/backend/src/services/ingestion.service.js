@@ -3,6 +3,10 @@ const Video = require('../models/Video');
 const Comment = require('../models/Comment');
 const { cleanText, detectLanguage, extractTimestamp } = require('../utils/text');
 
+// Viewer handles are replaced by a salted-free one-way hash so no personal identifier is stored.
+const anonymize = (author) =>
+  author ? `viewer_${crypto.createHash('sha256').update(author).digest('hex').slice(0, 8)}` : undefined;
+
 exports.upsertVideo = (data) =>
   Video.findOneAndUpdate({ videoId: data.videoId }, { $set: data }, { new: true, upsert: true, runValidators: true });
 
@@ -32,7 +36,7 @@ exports.addComments = async (videoId, rawComments) => {
           $setOnInsert: {
             videoId,
             commentId,
-            author: raw.author,
+            author: anonymize(raw.author),
             text: raw.text,
             cleanText: clean,
             language: detectLanguage(clean),
