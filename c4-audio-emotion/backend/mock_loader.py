@@ -1,11 +1,12 @@
 """
-Loads the DUMMY inputs that stand in for other components:
+Loads the DUMMY inputs that stand in for the other components (Part 2 inputs):
+  - C1 transcript sections  (mock_data/component1_transcript.json)
+  - C2 knowledge gaps       (mock_data/knowledge_gaps.json)
   - C3 audience sentiment   (mock_data/component3_sentiment.json)
-  - knowledge gaps          (mock_data/knowledge_gaps.json)
 
-All knowledge of the file formats lives in THIS file. When the real C3 output
-or real knowledge-gap data is available, only these two functions change;
-fusion.py keeps receiving the same dict shapes (CLAUDE.md sections 8.3 and 8.4).
+All knowledge of the file formats lives in THIS file. When the real C1, C2 or C3
+outputs are available, only these functions change; fusion.py keeps receiving the
+same dict shapes (CLAUDE.md sections 8.3, 8.4 and 8.6).
 """
 import json
 
@@ -23,11 +24,16 @@ def _pick_mock(filename: str, video_id: str) -> dict:
     return entry
 
 
+def load_c1_transcript(video_id: str) -> dict:
+    """Dummy C1 output: transcript sections with topic and content type (hook / explanation / ...)."""
+    return _pick_mock("component1_transcript.json", video_id)
+
+
 def load_c3_sentiment(video_id: str) -> dict:
     """Dummy C3 output: overall sentiment, complaints, requested topics, timestamped comments."""
     return _pick_mock("component3_sentiment.json", video_id)
 
 
 def load_knowledge_gaps(video_id: str) -> dict:
-    """Dummy knowledge gaps: topics mentioned but not explained, with their time ranges."""
+    """Dummy C2 output: knowledge gaps (topics mentioned but not explained), with their time ranges."""
     return _pick_mock("knowledge_gaps.json", video_id)

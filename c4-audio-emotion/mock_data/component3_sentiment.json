@@ -2,18 +2,79 @@
   "_note": "DUMMY DATA standing in for Component 3 (audience feedback mining). Not real comments. Each entry follows the agreed C3 format; 'default' is used for any video not listed.",
   "mocks": [
     {
+      "variant": "mixed_audio_complaints",
+      "video_id": "e-P5IFTqB98",
+      "sentiment_score": -0.32,
+      "sentiment_label": "mixed_negative",
+      "comment_count": 418,
+      "top_complaints": [
+        "intro music drowns out the narrator",
+        "event horizon part was confusing",
+        "great animation"
+      ],
+      "requested_topics": [
+        "white holes",
+        "how black holes evaporate"
+      ],
+      "timestamped_feedback": [
+        {
+          "t_s": 12,
+          "text": "can barely hear him over the music at the start",
+          "sentiment": -0.7
+        },
+        {
+          "t_s": 95,
+          "text": "I didn't get the event horizon explanation",
+          "sentiment": -0.5
+        },
+        {
+          "t_s": 140,
+          "text": "spaghettification animation is amazing",
+          "sentiment": 0.9
+        },
+        {
+          "t_s": 172,
+          "text": "nice recap",
+          "sentiment": 0.6
+        }
+      ]
+    },
+    {
       "variant": "negative",
       "video_id": "xCUKEqa8MKQ",
       "sentiment_score": -0.55,
       "sentiment_label": "negative",
       "comment_count": 312,
-      "top_complaints": ["background music too loud", "slow pacing in the middle", "hard to follow explanation"],
-      "requested_topics": ["neutron stars", "supernova remnants"],
+      "top_complaints": [
+        "background music too loud",
+        "slow pacing in the middle",
+        "hard to follow explanation"
+      ],
+      "requested_topics": [
+        "neutron stars",
+        "supernova remnants"
+      ],
       "timestamped_feedback": [
-        { "t_s": 25,  "text": "music is louder than the narrator here", "sentiment": -0.7 },
-        { "t_s": 95,  "text": "this part drags a bit",                    "sentiment": -0.6 },
-        { "t_s": 140, "text": "lost me at the fusion explanation",        "sentiment": -0.5 },
-        { "t_s": 170, "text": "nice visuals though",                      "sentiment": 0.4 }
+        {
+          "t_s": 25,
+          "text": "music is louder than the narrator here",
+          "sentiment": -0.7
+        },
+        {
+          "t_s": 95,
+          "text": "this part drags a bit",
+          "sentiment": -0.6
+        },
+        {
+          "t_s": 140,
+          "text": "lost me at the fusion explanation",
+          "sentiment": -0.5
+        },
+        {
+          "t_s": 170,
+          "text": "nice visuals though",
+          "sentiment": 0.4
+        }
       ]
     },
     {
@@ -22,11 +83,26 @@
       "sentiment_score": -0.35,
       "sentiment_label": "mixed_negative",
       "comment_count": 240,
-      "top_complaints": ["music too loud", "slow pacing in the middle", "hard to follow explanation"],
-      "requested_topics": ["black hole information paradox", "Hawking radiation"],
+      "top_complaints": [
+        "music too loud",
+        "slow pacing in the middle",
+        "hard to follow explanation"
+      ],
+      "requested_topics": [
+        "black hole information paradox",
+        "Hawking radiation"
+      ],
       "timestamped_feedback": [
-        { "t_s": 20,  "text": "great intro!",          "sentiment": 0.8 },
-        { "t_s": 140, "text": "this part drags a bit", "sentiment": -0.6 }
+        {
+          "t_s": 20,
+          "text": "great intro!",
+          "sentiment": 0.8
+        },
+        {
+          "t_s": 140,
+          "text": "this part drags a bit",
+          "sentiment": -0.6
+        }
       ]
     },
     {
@@ -35,11 +111,23 @@
       "sentiment_score": 0.62,
       "sentiment_label": "positive",
       "comment_count": 95,
-      "top_complaints": ["too short"],
-      "requested_topics": ["elephant behaviour"],
+      "top_complaints": [
+        "too short"
+      ],
+      "requested_topics": [
+        "elephant behaviour"
+      ],
       "timestamped_feedback": [
-        { "t_s": 5,  "text": "classic!",         "sentiment": 0.9 },
-        { "t_s": 15, "text": "love the ending", "sentiment": 0.7 }
+        {
+          "t_s": 5,
+          "text": "classic!",
+          "sentiment": 0.9
+        },
+        {
+          "t_s": 15,
+          "text": "love the ending",
+          "sentiment": 0.7
+        }
       ]
     },
     {
@@ -48,11 +136,26 @@
       "sentiment_score": -0.35,
       "sentiment_label": "mixed_negative",
       "comment_count": 240,
-      "top_complaints": ["music too loud", "slow pacing in the middle", "hard to follow explanation"],
-      "requested_topics": ["black hole information paradox", "Hawking radiation"],
+      "top_complaints": [
+        "music too loud",
+        "slow pacing in the middle",
+        "hard to follow explanation"
+      ],
+      "requested_topics": [
+        "black hole information paradox",
+        "Hawking radiation"
+      ],
       "timestamped_feedback": [
-        { "t_s": 20,  "text": "great intro!",          "sentiment": 0.8 },
-        { "t_s": 140, "text": "this part drags a bit", "sentiment": -0.6 }
+        {
+          "t_s": 20,
+          "text": "great intro!",
+          "sentiment": 0.8
+        },
+        {
+          "t_s": 140,
+          "text": "this part drags a bit",
+          "sentiment": -0.6
+        }
       ]
     }
   ]

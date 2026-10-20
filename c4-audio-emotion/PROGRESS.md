@@ -240,3 +240,13 @@ One entry per day: what was done, what's next, blockers.
   voice vs. music loudness chart, problem cards with "watch at" links, link to Part 2, JSON download.
 - 60 tests pass. Real run "Black Holes Explained": 98 s; music sounds like "tense dramatic cinematic" (29 %);
   problem: music too loud under the narration 00:00–00:20 (high).
+
+**Block 4: Part 2 rules with C1/C2/C3 inputs**
+- Dummy C1 transcript sections (`mock_data/component1_transcript.json`: topic + content type hook/explanation/example/summary)
+  and `load_c1_transcript`; knowledge gaps now attributed to C2; demo video "Black Holes Explained" got its own dummy C2/C3 data.
+- New rules: R7 mood–content mismatch (lively music during an explanation / calm music in the hook, relative to the
+  video's average), R8 measured "music too loud" + loudness complaints/comments, R9 distortion and dead air.
+  R5 now cross-checks complaints with the measured loudness problem; R6 also counts C1 section topics as covered.
+- Evidence in plain language ("energy" = arousal, "mood" = valence, numbers in brackets); every recommendation has a
+  `link` that opens the video at its start time.
+- 68 tests pass.

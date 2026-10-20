@@ -1,20 +1,47 @@
 {
-  "_note": "DUMMY DATA standing in for knowledge-gap detection (C1/C2 knowledge graph). Not real analysis. 'default' is used for any video not listed.",
+  "_note": "DUMMY DATA standing in for Component 2 knowledge base (knowledge-gap detection). Not real analysis. 'default' is used for any video not listed.",
   "mocks": [
+    {
+      "video_id": "e-P5IFTqB98",
+      "gaps": [
+        {
+          "topic": "the event horizon",
+          "start_s": 80,
+          "end_s": 115,
+          "severity": "high",
+          "description": "Mentioned but not defined; other videos in the knowledge base explain it step by step."
+        }
+      ]
+    },
     {
       "video_id": "xCUKEqa8MKQ",
       "gaps": [
-        { "topic": "nuclear fusion in stellar cores", "start_s": 125, "end_s": 165, "severity": "high",
-          "description": "Fusion is mentioned but the process is not explained; related videos cover it step by step." },
-        { "topic": "molecular clouds", "start_s": 30, "end_s": 55, "severity": "low",
-          "description": "Term used without a definition." }
+        {
+          "topic": "nuclear fusion in stellar cores",
+          "start_s": 125,
+          "end_s": 165,
+          "severity": "high",
+          "description": "Fusion is mentioned but the process is not explained; related videos cover it step by step."
+        },
+        {
+          "topic": "molecular clouds",
+          "start_s": 30,
+          "end_s": 55,
+          "severity": "low",
+          "description": "Term used without a definition."
+        }
       ]
     },
     {
       "video_id": "vbZKydfBUUI",
       "gaps": [
-        { "topic": "Hawking radiation", "start_s": 120, "end_s": 165, "severity": "medium",
-          "description": "Concept mentioned but not explained; related videos cover it in depth." }
+        {
+          "topic": "Hawking radiation",
+          "start_s": 120,
+          "end_s": 165,
+          "severity": "medium",
+          "description": "Concept mentioned but not explained; related videos cover it in depth."
+        }
       ]
     },
     {
@@ -24,8 +51,13 @@
     {
       "video_id": "default",
       "gaps": [
-        { "topic": "Hawking radiation", "start_s": 120, "end_s": 165, "severity": "medium",
-          "description": "Concept mentioned but not explained; related videos cover it in depth." }
+        {
+          "topic": "Hawking radiation",
+          "start_s": 120,
+          "end_s": 165,
+          "severity": "medium",
+          "description": "Concept mentioned but not explained; related videos cover it in depth."
+        }
       ]
     }
   ]

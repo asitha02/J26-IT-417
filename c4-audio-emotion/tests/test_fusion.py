@@ -80,7 +80,7 @@ def test_r1_detects_a_small_dip_in_a_near_neutral_video():
     # The old absolute rule (arousal < -0.3) would never fire here; the relative rule does.
     recs = rule_r1_low_energy(timeline(lambda i: 0.03 if 20 <= i <= 24 else 0.10), NO_C3)
     assert [(r["start_s"], r["end_s"]) for r in recs] == [(100, 130)]
-    assert "below this video's average" in recs[0]["evidence"][0]
+    assert "calmer here than in the rest of the video" in recs[0]["evidence"][0]
 
 
 def test_rules_judge_each_video_against_itself():
@@ -186,3 +186,61 @@ def test_full_run_is_sorted_numbered_and_explained():
 def test_nothing_on_a_healthy_video():
     happy = {"sentiment_score": 0.6, "top_complaints": [], "requested_topics": [], "timestamped_feedback": []}
     assert generate_recommendations(timeline(varied), happy, {"gaps": []}, 180) == []
+
+
+# ---------- Part 2 rules using C1 sections and measured audio problems ----------
+
+from backend.fusion import rule_r7_mood_content_mismatch, rule_r8_music_too_loud, rule_r9_audio_quality, video_link
+
+C1 = {"sections": [
+    {"start_s": 0, "end_s": 30, "topic": "intro", "content_type": "hook"},
+    {"start_s": 120, "end_s": 165, "topic": "Hawking radiation", "content_type": "explanation"},
+]}
+LOUD = {"type": "music_too_loud", "severity": "medium", "start_s": 110, "end_s": 140,
+        "description": "too loud", "evidence": ["At its loudest the music is only 5 dB quieter than the voice"]}
+
+
+def test_r7_lively_music_during_an_explanation():
+    segs = timeline(lambda i: 0.4 if 23 <= i <= 31 else 0.0)            # livelier from 115 s on
+    recs = rule_r7_mood_content_mismatch(segs, C1, NO_C3)
+    lively = [r for r in recs if r["title"] == "Music is too lively for the explanation of 'Hawking radiation'"]
+    assert len(lively) == 1 and (lively[0]["start_s"], lively[0]["end_s"]) == (120, 165)
+    assert lively[0]["confidence"] == 0.7                                 # audio + transcript agree
+
+
+def test_r7_calm_opening_hook():
+    segs = timeline(lambda i: -0.3 if i <= 4 else 0.1)                  # calm first 30 s
+    recs = rule_r7_mood_content_mismatch(segs, C1, NO_C3)
+    calm = [r for r in recs if "opening music is calmer" in r["title"]]
+    assert len(calm) == 1 and (calm[0]["start_s"], calm[0]["end_s"]) == (0, 30)
+
+
+def test_r7_fitting_music_gives_no_mismatch():
+    assert rule_r7_mood_content_mismatch(timeline(lambda i: 0.1), C1, NO_C3) == []
+
+
+def test_r8_measured_loud_music_is_raised_by_complaints_and_comments():
+    assert rule_r8_music_too_loud([LOUD], NO_C3)[0]["severity"] == "medium"
+    rec = rule_r8_music_too_loud([LOUD], NEG_C3)[0]                     # "music too loud" complaint + comment at 120 s
+    assert rec["severity"] == "high" and rec["confidence"] == 0.9
+    assert any("music too loud" in e for e in rec["evidence"])
+
+
+def test_r5_is_supported_by_a_measured_problem():
+    rec = rule_r5_audio_complaints(NEG_C3, 180, [LOUD])[0]
+    assert rec["severity"] == "high"
+    assert any(e.startswith("Measured in the audio") for e in rec["evidence"])
+
+
+def test_r9_turns_clipping_and_silence_into_recommendations():
+    problems = [{**LOUD, "type": "clipping"}, {**LOUD, "type": "silence"}]
+    assert [r["type"] for r in rule_r9_audio_quality(problems)] == ["distortion", "dead_air"]
+
+
+def test_every_recommendation_links_to_its_moment_in_the_video():
+    url = "https://www.youtube.com/watch?v=ABCDEFGHIJK"
+    assert video_link(url, 125) == url + "&t=125s"
+    assert video_link(url, 0) == url
+    recs = generate_recommendations(timeline(LOW_100_145), NEG_C3, GAPS, 180, C1, [LOUD], url)
+    assert all(r["link"].startswith(url) for r in recs)
+    assert {"R7_mood_content_mismatch", "R8_music_too_loud"} & {r["rule_id"] for r in recs}

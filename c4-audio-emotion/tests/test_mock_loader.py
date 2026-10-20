@@ -32,3 +32,13 @@ def test_dummy_data_is_always_marked_and_follows_the_contract():
 def test_loading_twice_does_not_leak_changes():
     load_c3_sentiment("AAAAAAAAAAA")
     assert load_c3_sentiment("BBBBBBBBBBB")["video_id"] == "BBBBBBBBBBB"
+
+
+def test_c1_sections_follow_the_contract():
+    from backend.mock_loader import load_c1_transcript
+    for vid in ["e-P5IFTqB98", "UNKNOWN0000"]:
+        c1 = load_c1_transcript(vid)
+        assert c1["mock"] is True and c1["sections"]
+        for sec in c1["sections"]:
+            assert sec["content_type"] in {"hook", "explanation", "example", "summary"}
+            assert 0 <= sec["start_s"] < sec["end_s"] <= 180

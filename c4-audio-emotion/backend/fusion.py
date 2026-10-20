@@ -1,9 +1,13 @@
 """
 Fusion rules: combine three signals into prescriptive recommendations for the creator
-(CLAUDE.md section 10):
-  1. audio emotion timeline   (my model: valence/arousal per window)
-  2. audience sentiment       (C3, dummy for now)
-  3. knowledge gaps           (knowledge graph, dummy for now)
+(CLAUDE.md sections 10 and 8.6, Part 2):
+  1. audio emotion timeline of the background music + measured audio problems   (Part 1)
+  2. transcript sections with their topic and content type                       (C1, dummy for now)
+  3. knowledge gaps                                                              (C2, dummy for now)
+  4. audience sentiment and timestamped comments                                 (C3, dummy for now)
+
+Evidence is written in plain language for creators ("energy" = arousal, "mood" = valence),
+with the exact numbers in brackets.
 
 Why rules (not another ML model)? They are transparent: every recommendation says
 exactly WHICH evidence triggered it, so a creator (and the panel) can check it.
@@ -29,6 +33,7 @@ from backend.config import (
 )
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+LOUDNESS_KEYWORDS = ["loud", "volume", "music", "hear"]   # complaints about the music drowning the voice
 
 
 # ---------- small helpers ----------
@@ -89,7 +94,7 @@ def make_rec(rule_id, rec_type, severity, start, end, title, evidence, suggestio
             "title": title, "evidence": evidence, "suggestion": suggestion, "confidence": conf}
 
 
-# ---------- the six rules ----------
+# ---------- the rules ----------
 
 def rule_r1_low_energy(segments: list[dict], c3: dict) -> list[dict]:
     """
@@ -103,13 +108,13 @@ def rule_r1_low_energy(segments: list[dict], c3: dict) -> list[dict]:
         if end - start < R1_MIN_DURATION_S:
             continue
         mean_arousal = sum(s["arousal"] for s in run) / len(run)
-        evidence = [f"Arousal {avg - mean_arousal:.2f} below this video's average ({mean_arousal:+.2f} vs "
-                    f"{avg:+.2f}) for {end - start:.0f} s"]
+        evidence = [f"The music is noticeably calmer here than in the rest of the video for {end - start:.0f} s "
+                    f"(energy {mean_arousal:+.2f} vs. video average {avg:+.2f})"]
         comments = negative_comments_near(c3, start, end)
         evidence += [comment_evidence(c) for c in comments]
         recs.append(make_rec(
             "R1_low_energy", "low_energy_segment", "high" if comments else "medium", start, end,
-            f"Low-energy audio during {mmss(start)}–{mmss(end)}", evidence,
+            f"Low-energy music during {mmss(start)}–{mmss(end)}", evidence,
             "Raise the pace or add more dynamic background music, or shorten this section.",
             confidence(1 if comments else 0),
         ))
@@ -131,12 +136,12 @@ def rule_r2_tense_audio(segments: list[dict], c3: dict) -> list[dict]:
             continue
         mean_v = sum(s["valence"] for s in run) / len(run)
         mean_a = sum(s["arousal"] for s in run) / len(run)
-        evidence = [f"Tenser than the rest of the video for {end - start:.0f} s: arousal {mean_a:+.2f} "
-                    f"(video average {avg_a:+.2f}), valence {mean_v:+.2f} (video average {avg_v:+.2f})"]
+        evidence = [f"The music is more intense and darker here than in the rest of the video for {end - start:.0f} s "
+                    f"(energy {mean_a:+.2f} vs. {avg_a:+.2f}; mood {mean_v:+.2f} vs. {avg_v:+.2f})"]
         evidence += [f"Viewer complaint: '{c}'" for c in complaints]
         recs.append(make_rec(
             "R2_tense_audio", "tense_audio_segment", "high" if complaints else "medium", start, end,
-            f"Tense, intense audio during {mmss(start)}–{mmss(end)}", evidence,
+            f"Tense, intense music during {mmss(start)}–{mmss(end)}", evidence,
             "Lower the background music under narration and keep the narration clearly audible.",
             confidence(1 if complaints else 0),
         ))
@@ -154,9 +159,9 @@ def rule_r3_flat_profile(segments: list[dict], analyzed_seconds: float) -> list[
         return []
     return [make_rec(
         "R3_flat_profile", "flat_energy_profile", "low", 0, analyzed_seconds,
-        "Audio energy stays the same throughout",
-        [f"Arousal standard deviation {std:.3f} (below {R3_MIN_AROUSAL_STD}); energy ranges only "
-         f"{min(arousal):+.2f} to {max(arousal):+.2f}"],
+        "The music's energy stays the same throughout",
+        [f"The music's energy hardly changes over the whole clip (it stays between {min(arousal):+.2f} and "
+         f"{max(arousal):+.2f}; variation {std:.3f}, below {R3_MIN_AROUSAL_STD})"],
         "Vary the music energy between sections (e.g. calmer for explanations, livelier for key moments) to hold attention.",
         confidence(0),
     )]
@@ -177,8 +182,8 @@ def rule_r4_complex_content_audio(segments: list[dict], gaps: dict, c3: dict) ->
         peak = max(s["arousal"] for s in overlapping)
         evidence = [
             f"Knowledge gap '{gap['topic']}' at {mmss(gap['start_s'])}–{mmss(gap['end_s'])}: {gap['description']}",
-            f"Arousal up to {peak:+.2f} during this explanation, above the video's average of {avg:+.2f} "
-            f"({len(overlapping)} intense window(s))",
+            f"The music gets more intense during this explanation (energy up to {peak:+.2f}, "
+            f"video average {avg:+.2f})",
         ]
         comments = negative_comments_near(c3, gap["start_s"], gap["end_s"])
         evidence += [comment_evidence(c) for c in comments]
@@ -186,31 +191,40 @@ def rule_r4_complex_content_audio(segments: list[dict], gaps: dict, c3: dict) ->
             "R4_complex_content_audio", "intense_audio_complex_content",
             "high" if gap["severity"] == "high" or comments else "medium",
             gap["start_s"], gap["end_s"],
-            f"Intense audio while explaining '{gap['topic']}'", evidence,
+            f"Intense music while explaining '{gap['topic']}'", evidence,
             "Use calmer audio during complex explanations, and add a short recap or visual for this concept.",
             confidence(1 + (1 if comments else 0)),   # audio + gap agree; a nearby comment adds more
         ))
     return recs
 
 
-def rule_r5_audio_complaints(c3: dict, analyzed_seconds: float) -> list[dict]:
-    """R5: audience is negative overall AND complaints mention audio/pacing keywords."""
+def rule_r5_audio_complaints(c3: dict, analyzed_seconds: float, audio_problems: list = ()) -> list[dict]:
+    """
+    R5: audience is negative overall AND complaints mention audio/pacing keywords.
+    A MEASURED "music too loud" problem from Part 1 is independent support (cross-check).
+    """
     complaints = audio_complaints(c3)
     if c3.get("sentiment_score", 0) >= NEGATIVE_SENTIMENT or not complaints:
         return []
+    measured = [p for p in audio_problems if p["type"] == "music_too_loud"]
+    evidence = ([f"Viewers' overall reaction is negative ({c3['sentiment_score']:+.2f} across "
+                 f"{c3.get('comment_count', '?')} comments)"]
+                + [f"Complaint: '{c}'" for c in complaints]
+                + [f"Measured in the audio: the music is too loud under the narration during "
+                   f"{mmss(p['start_s'])}–{mmss(p['end_s'])}" for p in measured])
     return [make_rec(
-        "R5_audio_complaints", "audio_complaints", "medium", 0, analyzed_seconds,
-        "Viewers complain about the audio or pacing",
-        [f"Overall comment sentiment {c3['sentiment_score']:+.2f} ({c3.get('comment_count', '?')} comments)"]
-        + [f"Complaint: '{c}'" for c in complaints],
+        "R5_audio_complaints", "audio_complaints", "high" if measured else "medium", 0, analyzed_seconds,
+        "Viewers complain about the audio or pacing", evidence,
         "Review the mixing levels (music vs. narration) and the pacing across the whole video.",
-        confidence(len(complaints) - 1),        # several separate complaints agree with each other
+        # several separate complaints agree with each other; a measured problem agrees too
+        confidence(len(complaints) - 1 + (1 if measured else 0)),
     )]
 
 
-def rule_r6_requested_topics(c3: dict, gaps: dict, analyzed_seconds: float) -> list[dict]:
-    """R6: topics viewers ask for that the video doesn't cover (not even as a gap). Low priority."""
+def rule_r6_requested_topics(c3: dict, gaps: dict, analyzed_seconds: float, c1: dict = None) -> list[dict]:
+    """R6: topics viewers ask for that the video doesn't cover (not a section topic, not a gap). Low priority."""
     covered = [g["topic"].lower() for g in gaps.get("gaps", [])]
+    covered += [sec["topic"].lower() for sec in (c1 or {}).get("sections", [])]
     missing = [t for t in c3.get("requested_topics", [])
                if not any(t.lower() in c or c in t.lower() for c in covered)]
     if not missing:
@@ -222,6 +236,101 @@ def rule_r6_requested_topics(c3: dict, gaps: dict, analyzed_seconds: float) -> l
         "Consider a follow-up video or a short extra section on these topics.",
         confidence(0),
     )]
+
+
+def _windows_in(segments: list[dict], start: float, end: float) -> list[dict]:
+    """Windows whose middle falls inside [start, end)."""
+    return [s for s in segments if start <= (s["start_s"] + s["end_s"]) / 2 < end]
+
+
+def _music_label_in(windows: list[dict]):
+    labels = [w.get("music_label") for w in windows if w.get("music_label")]
+    return max(set(labels), key=labels.count) if labels else None
+
+
+def rule_r7_mood_content_mismatch(segments: list[dict], c1: dict, c3: dict) -> list[dict]:
+    """
+    R7: the music's energy doesn't fit what is being said (C1 transcript sections):
+      - an EXPLANATION with music livelier than the rest of the video -> distracting while learning
+      - a HOOK / intro with music calmer than the rest of the video   -> weak opening
+    """
+    recs = []
+    avg = video_average(segments, "arousal")
+    for sec in c1.get("sections", []):
+        windows = _windows_in(segments, sec["start_s"], sec["end_s"])
+        if not windows:
+            continue
+        energy = sum(w["arousal"] for w in windows) / len(windows)
+        if sec["content_type"] == "explanation" and energy > avg + RELATIVE_DELTA:
+            title = f"Music is too lively for the explanation of '{sec['topic']}'"
+            first = (f"This part explains '{sec['topic']}', but the music here is livelier than in the rest "
+                     f"of the video (energy {energy:+.2f} vs. average {avg:+.2f})")
+            suggestion = "Use calmer, simpler music (or lower it) while explaining, so viewers can focus on the idea."
+        elif sec["content_type"] == "hook" and energy < avg - RELATIVE_DELTA:
+            title = "The opening music is calmer than the rest of the video"
+            first = (f"The hook '{sec['topic']}' should grab attention, but the music here is calmer than in the "
+                     f"rest of the video (energy {energy:+.2f} vs. average {avg:+.2f})")
+            suggestion = "Open with livelier music to grab attention in the first seconds, then calm down for the explanation."
+        else:
+            continue
+        evidence = [first]
+        label = _music_label_in(windows)
+        if label:
+            evidence.append(f"The music here sounds like: {label}")
+        comments = negative_comments_near(c3, sec["start_s"], sec["end_s"])
+        evidence += [comment_evidence(c) for c in comments]
+        recs.append(make_rec("R7_mood_content_mismatch", "mood_content_mismatch", "high" if comments else "medium",
+                             sec["start_s"], sec["end_s"], title, evidence, suggestion,
+                             confidence(1 + (1 if comments else 0))))   # audio + transcript agree
+    return recs
+
+
+def rule_r8_music_too_loud(audio_problems: list, c3: dict) -> list[dict]:
+    """
+    R8: Part 1 MEASURED the music too loud under the narration. Viewers complaining about
+    loudness, or negative comments at that moment, raise severity and confidence.
+    """
+    recs = []
+    loud_complaints = [c for c in c3.get("top_complaints", []) if any(k in c.lower() for k in LOUDNESS_KEYWORDS)]
+    for p in audio_problems:
+        if p["type"] != "music_too_loud":
+            continue
+        comments = negative_comments_near(c3, p["start_s"], p["end_s"])
+        evidence = list(p["evidence"]) + [f"Viewer complaint: '{c}'" for c in loud_complaints]
+        evidence += [comment_evidence(c) for c in comments]
+        support = (1 if loud_complaints else 0) + (1 if comments else 0)
+        recs.append(make_rec("R8_music_too_loud", "music_too_loud", "high" if support else p["severity"],
+                             p["start_s"], p["end_s"],
+                             f"Background music too loud under the narration during {mmss(p['start_s'])}–{mmss(p['end_s'])}",
+                             evidence,
+                             "Lower the background music while someone is speaking (by about 10–15 dB), "
+                             "or use automatic ducking in your editor.",
+                             confidence(support)))
+    return recs
+
+
+def rule_r9_audio_quality(audio_problems: list) -> list[dict]:
+    """R9: other measured problems: distortion (clipping) and dead air (silence)."""
+    recs = []
+    for p in audio_problems:
+        if p["type"] == "clipping":
+            recs.append(make_rec("R9_audio_quality", "distortion", "medium", p["start_s"], p["end_s"],
+                                 f"Distorted audio during {mmss(p['start_s'])}–{mmss(p['end_s'])}", p["evidence"],
+                                 "Export the audio at a lower level or use a limiter so the loudest parts don't distort.",
+                                 confidence(0)))
+        elif p["type"] == "silence":
+            recs.append(make_rec("R9_audio_quality", "dead_air", "low", p["start_s"], p["end_s"],
+                                 f"Dead air during {mmss(p['start_s'])}–{mmss(p['end_s'])}", p["evidence"],
+                                 "Cut the silent gap, or fill it with music, visuals or narration to keep the pace.",
+                                 confidence(0)))
+    return recs
+
+
+def video_link(youtube_url: str, start_s: float) -> str:
+    """Link that opens the video at the start of the recommendation."""
+    if not youtube_url:
+        return ""
+    return youtube_url if start_s <= 0 else f"{youtube_url}&t={int(start_s)}s"
 
 
 # ---------- combine ----------
@@ -243,9 +352,14 @@ def merge_overlapping(recs: list[dict]) -> list[dict]:
 
 
 def generate_recommendations(segments: list[dict], c3: dict = None, gaps: dict = None,
-                             analyzed_seconds: float = None) -> list[dict]:
-    """Run every rule, merge overlaps, sort (most severe first, then most confident) and number them."""
-    c3, gaps = c3 or {}, gaps or {}
+                             analyzed_seconds: float = None, c1: dict = None,
+                             audio_problems: list = None, youtube_url: str = "") -> list[dict]:
+    """
+    Run every rule, merge overlaps, sort (most severe first, then most confident), number them
+    and add a link that opens the video at each recommendation.
+    segments = Part 1 windows of the BACKGROUND MUSIC; c1 / gaps (C2) / c3 = other components' outputs.
+    """
+    c3, gaps, c1, audio_problems = c3 or {}, gaps or {}, c1 or {}, audio_problems or []
     if analyzed_seconds is None:
         analyzed_seconds = segments[-1]["end_s"] if segments else 0
 
@@ -256,11 +370,15 @@ def generate_recommendations(segments: list[dict], c3: dict = None, gaps: dict =
         + rule_r2_tense_audio(segments, c3)
         + rule_r3_flat_profile(segments, analyzed_seconds)
         + rule_r4_complex_content_audio(segments, gaps, c3)
-        + rule_r5_audio_complaints(c3, analyzed_seconds)
-        + rule_r6_requested_topics(c3, gaps, analyzed_seconds)
+        + rule_r5_audio_complaints(c3, analyzed_seconds, audio_problems)
+        + rule_r6_requested_topics(c3, gaps, analyzed_seconds, c1)
+        + rule_r7_mood_content_mismatch(segments, c1, c3)
+        + rule_r8_music_too_loud(audio_problems, c3)
+        + rule_r9_audio_quality(audio_problems)
     )
     recs = merge_overlapping(recs)
     recs.sort(key=lambda r: (SEVERITY_ORDER[r["severity"]], -r["confidence"]))
     for i, rec in enumerate(recs, start=1):
         rec["id"] = f"rec_{i:03d}"
+        rec["link"] = video_link(youtube_url, rec["start_s"])
     return recs
