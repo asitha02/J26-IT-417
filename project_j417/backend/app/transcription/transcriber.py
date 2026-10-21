@@ -45,6 +45,8 @@ class Transcriber:
         on_progress: Callable[[float], None] | None = None,
     ) -> tuple[list[dict], dict]:
         self.load()
+        if self.cfg.model.endswith(".en"):  # English-only checkpoints must not be asked for another language
+            language = "en"
         segments_iter, info = self._pipeline.transcribe(
             str(audio_path),
             language=language or None,

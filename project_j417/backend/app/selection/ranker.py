@@ -1,18 +1,21 @@
 """Relevance ranking of video segments for a topic / audience.
 
 Pipeline (all CPU, no GPU needed):
-  1. Windowing   - merge consecutive ASR segments into ~30 s overlapping candidate clips.
-  2. Lexical     - Okapi BM25 over every window of every selected video (exact-term match).
-  3. Semantic    - cosine similarity from a small ONNX embedding model (bge-small, ~33 MB).
-  4. Fusion      - weighted sum of the two min-max-normalised scores, lightly scaled by ASR
+  1. Cleaning    - fillers, stutters and "like & subscribe" boilerplate removed (see clean.py).
+  2. Windowing   - consecutive ASR segments merged into ~30 s overlapping candidate clips;
+                   near-empty windows and exact duplicates are dropped before any scoring.
+  3. Lexical     - Okapi BM25 over every window of every selected video (exact-term match).
+  4. Semantic    - cosine similarity from a small ONNX embedding model (bge-small, ~33 MB).
+                   Window vectors are computed once per video and stored, so a query only embeds
+                   the query text.
+  5. Fusion      - weighted sum of the two min-max-normalised scores, lightly scaled by ASR
                    confidence so clips from garbled speech rank lower.
-  5. Selection   - greedy pick best-first, dropping clips that overlap one already chosen and
-                   capping clips per video so one long video cannot fill the whole list.
+  6. Selection   - best-first; skips clips overlapping a chosen one, near-duplicate text (e.g. the
+                   same content re-uploaded), and caps clips per video.
 
 If the embedding model cannot be loaded (offline, not installed) it degrades to BM25 only.
 """
 
-import hashlib
 import logging
 import math
 import re
@@ -31,6 +34,8 @@ _STOP = frozenset(
 
 SEMANTIC_WEIGHT = 0.65
 LEXICAL_WEIGHT = 0.35
+MIN_CONTENT_TOKENS = 8  # windows with less substance than this are not worth ranking
+DUPLICATE_JACCARD = 0.8  # clips whose word sets overlap more than this count as the same content
 
 
 def tokenize(text: str) -> list[str]:
@@ -45,11 +50,13 @@ class Window:
     text: str
     confidence: float | None
     tokens: list[str] = field(repr=False, default_factory=list)
+    vec: list[float] | None = field(repr=False, default=None)
 
 
 def build_windows(source_id: str, segments: list[dict], window_sec: float = 30.0) -> list[Window]:
     """Group consecutive segments into windows of >= window_sec, advancing by ~half a window."""
     windows: list[Window] = []
+    seen: set[str] = set()
     n, i = len(segments), 0
     while i < n:
         j, start = i, float(segments[i]["start"])
@@ -58,7 +65,9 @@ def build_windows(source_id: str, segments: list[dict], window_sec: float = 30.0
         last = min(j, n - 1)
         chunk = segments[i : last + 1]
         text = " ".join(s["text"].strip() for s in chunk).strip()
-        if text:
+        tokens = tokenize(text)
+        if len(tokens) >= MIN_CONTENT_TOKENS and text not in seen:
+            seen.add(text)
             confs = [s["confidence"] for s in chunk if s.get("confidence") is not None]
             windows.append(
                 Window(
@@ -67,7 +76,7 @@ def build_windows(source_id: str, segments: list[dict], window_sec: float = 30.0
                     round(float(chunk[-1]["end"]), 2),
                     text,
                     sum(confs) / len(confs) if confs else None,
-                    tokenize(text),
+                    tokens,
                 )
             )
         if last >= n - 1:
@@ -101,12 +110,13 @@ def bm25_scores(query_tokens: list[str], docs: list[list[str]], k1: float = 1.5,
     return scores
 
 
-def _minmax(values: list[float]) -> list[float]:
+def _minmax(values: list[float], flat: float = 0.0) -> list[float]:
+    """Scale to 0-1. If all values are equal there is no spread to rank by: return `flat` for all."""
     if not values:
         return []
     lo, hi = min(values), max(values)
     if hi - lo < 1e-9:
-        return [0.0] * len(values)
+        return [flat] * len(values)
     return [(v - lo) / (hi - lo) for v in values]
 
 
@@ -119,7 +129,6 @@ class Embedder:
         self._model = None
         self._failed = self.model_name is None
         self._lock = threading.Lock()
-        self._cache: dict[str, list[float]] = {}
 
     @property
     def available(self) -> bool:
@@ -142,16 +151,8 @@ class Embedder:
                 return False
 
     def embed_docs(self, texts: list[str]) -> list[list[float]]:
-        keys = [hashlib.sha1(t.encode()).hexdigest() for t in texts]
-        missing = [(k, t) for k, t in zip(keys, texts) if k not in self._cache]
-        if missing:
-            vecs = self._model.embed([t for _, t in missing], batch_size=64)
-            for (k, _), v in zip(missing, vecs):
-                self._cache[k] = [float(x) for x in v]
-            if len(self._cache) > 50_000:  # crude bound
-                self._cache.clear()
-                return self.embed_docs(texts)
-        return [self._cache[k] for k in keys]
+        # 4 decimals: negligible for cosine ranking, ~half the storage of full floats
+        return [[round(float(x), 4) for x in v] for v in self._model.embed(texts, batch_size=32)]
 
     def embed_query(self, text: str) -> list[float]:
         return [float(x) for x in next(iter(self._model.query_embed(text)))]
@@ -173,19 +174,29 @@ def rank_windows(
     per_video_max: int | None = 3,
     max_overlap: float = 0.3,
 ) -> tuple[list[RankedClip], str]:
-    """Return (best non-overlapping clips, method) where method is 'hybrid' or 'bm25'."""
+    """Return (best distinct clips, method) where method is 'hybrid' or 'bm25'.
+
+    Windows that already carry a stored `vec` are not re-embedded; freshly computed vectors are
+    written back onto the windows so the caller can persist them.
+    """
     if not windows:
         return [], "bm25"
 
-    lexical = _minmax(bm25_scores(tokenize(query), [w.tokens for w in windows]))
+    raw_lex = bm25_scores(tokenize(query), [w.tokens for w in windows])
+    lexical = _minmax(raw_lex, flat=1.0 if max(raw_lex) > 0 else 0.0)  # all-equal but matching = match
 
     semantic: list[float] | None = None
     method = "bm25"
     if embedder is not None and embedder.load():
-        doc_vecs = embedder.embed_docs([w.text for w in windows])
-        q = embedder.embed_query(query)
-        cos = [sum(a * b for a, b in zip(q, d)) for d in doc_vecs]  # vectors are L2-normalised
-        semantic = _minmax(cos)
+        import numpy as np
+
+        todo = [w for w in windows if w.vec is None]
+        if todo:
+            for w, v in zip(todo, embedder.embed_docs([w.text for w in todo])):
+                w.vec = v
+        matrix = np.asarray([w.vec for w in windows], dtype=np.float32)
+        q = np.asarray(embedder.embed_query(query), dtype=np.float32)
+        semantic = _minmax((matrix @ q).tolist(), flat=0.5)  # vectors are L2-normalised -> cosine
         method = "hybrid"
 
     ranked: list[RankedClip] = []
@@ -206,6 +217,8 @@ def rank_windows(
             continue
         if any(_overlap(w, p.window) > max_overlap for p in picked if p.window.source_id == w.source_id):
             continue
+        if any(_jaccard(w.tokens, p.window.tokens) > DUPLICATE_JACCARD for p in picked):
+            continue  # same content again (re-upload / repeated passage), even from another video
         picked.append(c)
         per_video[w.source_id] += 1
         if len(picked) >= top_k:
@@ -217,3 +230,9 @@ def _overlap(a: Window, b: Window) -> float:
     inter = min(a.end, b.end) - max(a.start, b.start)
     shorter = min(a.end - a.start, b.end - b.start)
     return max(inter, 0.0) / shorter if shorter > 0 else 0.0
+
+
+def _jaccard(a: list[str], b: list[str]) -> float:
+    sa, sb = set(a), set(b)
+    union = len(sa | sb)
+    return len(sa & sb) / union if union else 0.0

@@ -33,8 +33,6 @@ async def lifespan(app: FastAPI):
         app.state.embedder = Embedder(
             None if model.lower() in ("", "none") else model, str(settings.data_dir / "models")
         )
-        if app.state.embedder.available and settings.preload_model:
-            asyncio.create_task(asyncio.to_thread(app.state.embedder.load))
     yield
     if owns_db:
         await db.close()

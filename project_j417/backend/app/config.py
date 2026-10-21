@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     whisper_device: str = "auto"
     whisper_compute_type: str = "auto"
     batch_size: int = 0
-    beam_size: int = 5
+    beam_size: int = 0  # 0 = auto (5 on GPU, 1 on CPU)
 
     # Segment-selection ranker: small ONNX embedding model (~33 MB). "none" = BM25 only.
     embed_model: str = "BAAI/bge-small-en-v1.5"
@@ -66,14 +66,16 @@ class Settings(BaseSettings):
         model = self.whisper_model
         if model == "auto":
             # large-v3-turbo: near large-v3 accuracy at several times the speed.
-            model = "large-v3-turbo" if on_gpu else "small"
+            # CPU: English-only distilled small - ~2x faster than `small`, near-equal English accuracy.
+            model = "large-v3-turbo" if on_gpu else "distil-small.en"
 
         compute = self.whisper_compute_type
         if compute == "auto":
             compute = "float16" if on_gpu else "int8"
 
         batch = self.batch_size or (16 if on_gpu else 8)
-        return AsrConfig(model, device, compute, batch, self.beam_size)
+        beam = self.beam_size or (5 if on_gpu else 1)  # greedy decoding is much cheaper on CPU
+        return AsrConfig(model, device, compute, batch, beam)
 
 
 @lru_cache

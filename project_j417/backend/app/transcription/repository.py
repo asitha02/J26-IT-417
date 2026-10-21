@@ -17,6 +17,7 @@ class Repository:
     def __init__(self, db):
         self.jobs = db["transcription_jobs"]
         self.transcripts = db["transcripts"]
+        self.embeddings = db["window_embeddings"]
 
     async def ensure_indexes(self) -> None:
         await self.jobs.create_index([("created_at", -1)])
@@ -73,6 +74,15 @@ class Repository:
     async def list_transcripts(self, source_ids: list[str] | None = None) -> list[dict]:
         query = {"source_id": {"$in": source_ids}} if source_ids else {}
         return [doc async for doc in self.transcripts.find(query)]
+
+    # ---- stored window embeddings (segment selection) ----
+    async def get_embeddings(self, key: str) -> dict | None:
+        return await self.embeddings.find_one({"_id": key})
+
+    async def save_embeddings(self, key: str, sig: str, vectors: list[list[float]]) -> None:
+        await self.embeddings.replace_one(
+            {"_id": key}, {"_id": key, "sig": sig, "vectors": vectors}, upsert=True
+        )
 
     async def save_transcript(self, doc: dict) -> str:
         tid = transcript_key(doc["source_id"], doc["asr_model"])

@@ -1,9 +1,11 @@
 import asyncio
+import hashlib
 import re
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.selection.clean import clean_segments
 from app.selection.ranker import Embedder, build_windows, rank_windows
 from app.selection.schemas import Clip, LibraryItem, RankRequest, RankResponse
 from app.transcription.repository import Repository
@@ -29,6 +31,18 @@ def _latest_per_video(docs: list[dict]) -> list[dict]:
         if cur is None or d.get("created_at") and d["created_at"] > cur.get("created_at", d["created_at"]):
             best[d["source_id"]] = d
     return list(best.values())
+
+
+def _embedding_key(doc: dict, embedder: Embedder, window_sec: float) -> str:
+    return f"{doc['_id']}__{embedder.model_name}__{int(window_sec)}"
+
+
+def _signature(windows: list) -> str:
+    """Fingerprint of the window texts, so stored vectors are discarded if cleaning/ASR changes."""
+    h = hashlib.sha1()
+    for w in windows:
+        h.update(f"{w.start}|{w.end}|{w.text}\n".encode())
+    return h.hexdigest()
 
 
 def _watch_url(doc: dict, start: float) -> str:
@@ -69,14 +83,38 @@ async def rank(
     if body.audience and body.audience.strip():
         query = f"{query}. Suitable for {body.audience.strip()}"
 
-    def work():
-        windows = []
-        for d in docs:
-            windows += build_windows(d["source_id"], d["segments"], body.window_sec)
-        picked, method = rank_windows(windows, query, embedder, body.top_k, body.per_video_max)
-        return windows, picked, method
+    def make_windows():
+        return {
+            d["source_id"]: build_windows(d["source_id"], clean_segments(d["segments"]), body.window_sec)
+            for d in docs
+        }
 
-    windows, picked, method = await asyncio.to_thread(work)
+    per_doc = await asyncio.to_thread(make_windows)
+    windows = [w for ws in per_doc.values() for w in ws]
+
+    # Reuse window vectors stored from earlier queries - only new videos need embedding.
+    use_store = embedder is not None and embedder.available
+    keys = {d["source_id"]: _embedding_key(d, embedder, body.window_sec) for d in docs} if use_store else {}
+    fresh: set[str] = set()
+    if use_store:
+        for d in docs:
+            sid, ws = d["source_id"], per_doc[d["source_id"]]
+            stored = await repo.get_embeddings(keys[sid])
+            if stored and stored.get("sig") == _signature(ws) and len(stored["vectors"]) == len(ws):
+                for w, v in zip(ws, stored["vectors"]):
+                    w.vec = v
+            else:
+                fresh.add(sid)
+
+    picked, method = await asyncio.to_thread(
+        rank_windows, windows, query, embedder, body.top_k, body.per_video_max
+    )
+
+    if method == "hybrid":
+        for sid in fresh:
+            ws = per_doc[sid]
+            if ws and all(w.vec is not None for w in ws):
+                await repo.save_embeddings(keys[sid], _signature(ws), [w.vec for w in ws])
     by_id = {d["source_id"]: d for d in docs}
     clips = [
         Clip(

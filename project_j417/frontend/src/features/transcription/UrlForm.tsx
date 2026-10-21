@@ -6,28 +6,14 @@ interface Props {
   onSubmit: (v: { url: string; language?: string; word_timestamps: boolean }) => void;
 }
 
-const LANGUAGES: [string, string][] = [
-  ["", "Auto-detect"],
-  ["en", "English"],
-  ["si", "Sinhala"],
-  ["ta", "Tamil"],
-  ["hi", "Hindi"],
-  ["es", "Spanish"],
-  ["fr", "French"],
-  ["de", "German"],
-  ["zh", "Chinese"],
-  ["ja", "Japanese"],
-];
-
 export default function UrlForm({ busy, error, onSubmit }: Props) {
   const [url, setUrl] = useState("");
-  const [language, setLanguage] = useState("");
   const [words, setWords] = useState(false);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!url.trim()) return;
-    onSubmit({ url: url.trim(), language: language || undefined, word_timestamps: words });
+    onSubmit({ url: url.trim(), word_timestamps: words });
   };
 
   return (
@@ -55,20 +41,7 @@ export default function UrlForm({ busy, error, onSubmit }: Props) {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-600">
-        <label className="flex items-center gap-2">
-          Language
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-2 py-1"
-          >
-            {LANGUAGES.map(([code, name]) => (
-              <option key={code} value={code}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <span>English only</span>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"

@@ -65,6 +65,26 @@ def test_per_video_cap_and_no_match():
     assert none == []
 
 
+def test_clean_text_removes_redundancy():
+    from app.selection.clean import clean_segments, clean_text
+
+    assert clean_text("So um, the the model uh trains, you know, on on data.") == "So the model trains, on data."
+    assert clean_text("I think I think this works. Please like and subscribe!") == "I think this works."
+    assert clean_text("Do you know the answer?") == "Do you know the answer?"  # meaningful use kept
+    segs = [{"id": 0, "start": 0, "end": 2, "text": "Um, uh."}, {"id": 1, "start": 2, "end": 5, "text": "Real content here today."}]
+    assert [s["id"] for s in clean_segments(segs)] == [1]
+
+
+def test_duplicate_content_and_thin_windows_dropped():
+    line = "The telescope collects faint light from distant galaxies across the universe."
+    a = build_windows("a", _segments([line] * 3), 30)
+    b = build_windows("b", _segments([line] * 3), 30)  # same content re-uploaded
+    assert len(a) == 1  # identical overlapping windows collapse to one
+    clips, _ = rank_windows(a + b, "telescope galaxies light", None, top_k=5, per_video_max=None)
+    assert len(clips) == 1
+    assert build_windows("c", _segments(["Okay.", "Yes."]), 30) == []  # too little substance
+
+
 class FakeRepo:
     def __init__(self):
         now = datetime.now(timezone.utc)
