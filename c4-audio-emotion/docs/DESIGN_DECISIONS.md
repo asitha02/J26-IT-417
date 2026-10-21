@@ -145,7 +145,7 @@ The proposal describes two different jobs, so the component is split into two pa
 | Type of output | **descriptive**: what the background audio sounds like, where the audio problems are | **descriptive + prescriptive**: what happened in each section and what to change |
 | Input | a YouTube link | Part 1 result + C1, C2, C3 outputs (dummy JSON for now) |
 | Endpoint / page | `POST /audio/analyze` / "1 · Audio Analysis" | `POST /recommendations/{video_id}` / "2 · Recommendations" |
-| Speed | ~1.5–2 min (download + separation + model) | < 1 s (no audio work) |
+| Speed | first look ~14 s, full result ~2 min later (see 17) | < 1 s (no audio work) |
 
 Why: Part 2 is exactly where the other components' outputs come in. Keeping it separate means that in the final
 integration only the inputs change (dummy JSON → real outputs), and the audio analysis never has to be repeated.
@@ -238,7 +238,15 @@ comments this becomes the actual evaluation (the "segment-level agreement" metri
 
 ---
 
-## 16. Dummy data for other components
+## 16. Look and feel (21 Oct)
+
+- A "music studio" theme in `.streamlit/config.toml` with separate **light** (soft lavender) and **dark** (night violet) colours, plus CSS in `frontend/style.py`: animated gradient headers, glowing cards with a coloured edge per severity, gradient buttons.
+- Streamlit's running icons (swimmer, cyclist, runner) are replaced by animated music symbols (♪ ♫ ♬ 𝄞 🎧); waiting uses an equaliser animation.
+- Page 2 starts with what a creator needs: a plain-language summary, four donut charts (what needs attention, how urgent, music mood, what viewers felt), a highlighted **top priority** card and a checklist; the technical details (sections, validation, dummy inputs) are folded away underneath.
+
+---
+
+## 16b. Dummy data for other components
 
 C1 (transcript sections), C2 (knowledge gaps) and C3 (audience feedback) belong to other components that are not finished yet:
 - `mock_data/` holds dummy outputs for each demo video plus a `default` for any other video.
@@ -250,6 +258,8 @@ C1 (transcript sections), C2 (knowledge gaps) and C3 (audience feedback) belong 
 ## 17. Reliability decisions
 
 - **Fast download:** only the first few MB of the audio file are requested (HTTP "Range" request) instead of streaming with ffmpeg (~90 s, because YouTube limits streaming speed). Download went from ~96 s to ~3 s; the old method is the automatic fallback.
+- **Two-phase answer (changed 21 Oct):** Demucs needs ~0.9 s per second of audio on this CPU (all 8 cores already used; more threads or less overlap did not help). So Part 1 answers with a **first look in ~14 s** (model on the mixed audio, CLAP description, distortion/silence checks) and runs the separation **in the background**, reporting progress after every 30 s chunk. The page shows a progress bar and refreshes itself when the full result is ready (~2 min). Part 2 waits for the full result (409 "still separating").
+- **Measured before optimising:** profiling showed the model ran twice on the same audio and PyTorch's first run is ~3× slower, so the mixed-audio result is reused, CLAP is warmed up at start-up, the fastest batch size (4) is used and one YouTube info request is shared by two steps. First look: 31 s → 14 s.
 - **Completeness check + up to 3 attempts:** a dropped connection was found to crash ffmpeg or silently cut the audio short (104 s instead of 180 s).
 - **Temporary audio files are deleted automatically** (NFR security/ethics); separated tracks are never stored.
 - **Clear error messages:** invalid URL, unavailable/private video, live streams, failed download, database down, backend not running, Part 2 before Part 1.
@@ -261,7 +271,7 @@ C1 (transcript sections), C2 (knowledge gaps) and C3 (audience feedback) belong 
 
 1. **Domain mismatch:** DEAM is music only; science videos mix speech + music. Separation helps, but the background track still contains residual voice and sound effects.
 2. **Valence leans negative:** mean valence was negative on all test videos (−0.19 to −0.29), also after separation. Likely the quiet, ambient style of science-video music and the music-only training data. Rules therefore compare each video with its own average.
-3. **Separation is slow on CPU** (~1.5–2 min per 3-minute clip).
+3. **Separation is slow on CPU** (~2 min per 3-minute clip; slower on battery). Hidden by the two-phase answer, not solved.
 4. **Short training sequences:** most DEAM clips give ~5 windows; inference uses 35.
 5. **Noisy labels** and **one random seed**: small differences between models may not be significant.
 6. **Thresholds tuned on few videos** (relative delta 0.04, R3 std 0.03, loudness 10 dB) are starting values.

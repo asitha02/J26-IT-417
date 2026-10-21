@@ -58,7 +58,7 @@ Backend (from the `c4-audio-emotion` folder):
 venv\Scripts\python -m uvicorn backend.main:app --reload
 ```
 Open http://localhost:8000/docs to try the endpoints: Part 1 `POST /audio/analyze`, `GET /audio/analyses[/{video_id}]`; Part 2 `POST /recommendations/{video_id}` (see CLAUDE.md 8.6).
-The first start loads Demucs (~80 MB download once) and CLAP; with `USE_SOURCE_SEPARATION=true` an analysis takes about 2 minutes.
+The first start loads Demucs (~80 MB download once) and CLAP (~20 s). A new analysis gives a first look in ~15 s and the full result ~2 min later; analysed videos reopen instantly, so analyse demo videos once beforehand. Keep the laptop plugged in (separation is slower on battery).
 With `USE_MOCK_MODEL=true` the emotion values are fake and marked `"mock": true`.
 
 Frontend (second terminal, same folder, backend must be running):
@@ -66,7 +66,7 @@ Frontend (second terminal, same folder, backend must be running):
 venv\Scripts\python -m streamlit run frontend/app.py
 ```
 The app opens at http://localhost:8501 with two pages in the sidebar:
-1. **1 · Audio Analysis**: paste a YouTube link, click **Analyze audio** (about 1.5–2 minutes for a new video).
+1. **1 · Audio Analysis**: paste a YouTube link, click **Analyze audio**. A first look appears in ~15 s; the voice/music separation then finishes in the background (~2 min, with a progress bar) and the page updates itself.
 2. **2 · Recommendations**: pick the video, click **Generate recommendations** (under a second).
 
 Good demo video: `https://www.youtube.com/watch?v=e-P5IFTqB98` (has its own dummy C1/C2/C3 data).

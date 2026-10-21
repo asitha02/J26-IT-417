@@ -283,3 +283,22 @@ One entry per day: what was done, what's next, blockers.
 
 **Next**
 - Commit, then tags `v0.3-fusion-ui` and `v1.0-progress`; screenshots of both pages for the slides.
+
+## Day 16 (continued) — 21 Oct 2026: speed, look and feel, creator summary
+
+**Speed**
+- Measured: Demucs ~0.9 s per second of audio on this CPU (8 cores already in use; threads/overlap changes didn't help).
+- Two-phase Part 1: first look on the mixed audio returned immediately (status "processing"), Demucs runs in the
+  background in 30 s chunks and reports progress; Part 2 answers 409 until it is complete.
+- Profiling fixes: model no longer runs twice on the same audio, CLAP warm-up at start-up, batch size 4,
+  one shared YouTube info request. First look 31 s → 14 s; full result ~2 min (was ~3 min on battery).
+
+**Look and feel**
+- `.streamlit/config.toml`: separate light (lavender) and dark (night violet) themes; `frontend/style.py`: gradient headers,
+  glowing severity-coloured cards, gradient buttons, music-symbol loading animations replacing Streamlit's running icons.
+- Charts: smooth glowing curves, coloured mood quadrants with time-coloured dots, transparent backgrounds for both modes.
+
+**Creator summary (Page 2)**
+- Plain-language summary, 4 donut charts (what needs attention, urgency, music mood, viewer comments), highlighted
+  top-priority card, quick checklist with "watch" links; details (sections, validation, dummy inputs) in expanders.
+- All pages tested with Streamlit's AppTest (complete + processing states); 77 tests pass.
