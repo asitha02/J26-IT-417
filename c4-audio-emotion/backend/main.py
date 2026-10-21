@@ -24,9 +24,17 @@ from backend.audio_utils import (
     extract_video_id,
     get_video_info,
 )
-from backend.config import AUDIO_ANALYSES_COLLECTION, MODEL_PATH, USE_MOCK_MODEL, USE_SOURCE_SEPARATION
+from backend.config import (
+    AUDIO_ANALYSES_COLLECTION,
+    MODEL_PATH,
+    RECOMMENDATIONS_COLLECTION,
+    USE_MOCK_MODEL,
+    USE_SOURCE_SEPARATION,
+)
+from backend.mock_loader import load_c1_transcript, load_c3_sentiment, load_knowledge_gaps
 from backend.model import get_model
-from backend.schemas import AnalyzeRequest, AudioAnalysisResponse, Summary
+from backend.report import build_report
+from backend.schemas import AnalyzeRequest, AudioAnalysisResponse, RecommendationReport, Summary
 from backend.separation import get_separator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -102,3 +110,32 @@ def get_audio_analysis(video_id: str):
     if analysis is None:
         raise HTTPException(status_code=404, detail=f"No audio analysis saved for video '{video_id}'.")
     return analysis
+
+
+# ---------- Part 2: Content Enhancement Recommendations ----------
+
+@app.post("/recommendations/{video_id}", response_model=RecommendationReport)
+def create_recommendations(video_id: str):
+    """Fuse the saved Part 1 result with the C1, C2 and C3 outputs (dummy for now). Fast: no audio work."""
+    analysis = db.get(video_id, AUDIO_ANALYSES_COLLECTION)
+    if analysis is None:
+        raise HTTPException(status_code=404, detail="Run Part 1 (audio analysis) for this video first.")
+    report = build_report(analysis, load_c1_transcript(video_id), load_knowledge_gaps(video_id),
+                          load_c3_sentiment(video_id))
+    db.save(report, RECOMMENDATIONS_COLLECTION)
+    logger.info("Recommendations for %s: %d recommendations, validation lift=%s", video_id,
+                len(report["recommendations"]), report["validation"]["lift"])
+    return db.get(video_id, RECOMMENDATIONS_COLLECTION)
+
+
+@app.get("/recommendations", response_model=list[Summary])
+def list_recommendations():
+    return db.list_summaries(RECOMMENDATIONS_COLLECTION)
+
+
+@app.get("/recommendations/{video_id}", response_model=RecommendationReport)
+def get_recommendations(video_id: str):
+    report = db.get(video_id, RECOMMENDATIONS_COLLECTION)
+    if report is None:
+        raise HTTPException(status_code=404, detail=f"No recommendations saved for video '{video_id}'.")
+    return report

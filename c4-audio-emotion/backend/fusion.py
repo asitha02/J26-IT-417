@@ -262,11 +262,15 @@ def rule_r7_mood_content_mismatch(segments: list[dict], c1: dict, c3: dict) -> l
             continue
         energy = sum(w["arousal"] for w in windows) / len(windows)
         if sec["content_type"] == "explanation" and energy > avg + RELATIVE_DELTA:
+            # Same problem and advice as R4 (intense audio over hard content), so the same type:
+            # overlapping R4 and R7 cards are merged into one with both pieces of evidence.
+            rec_type = "intense_audio_complex_content"
             title = f"Music is too lively for the explanation of '{sec['topic']}'"
             first = (f"This part explains '{sec['topic']}', but the music here is livelier than in the rest "
                      f"of the video (energy {energy:+.2f} vs. average {avg:+.2f})")
             suggestion = "Use calmer, simpler music (or lower it) while explaining, so viewers can focus on the idea."
         elif sec["content_type"] == "hook" and energy < avg - RELATIVE_DELTA:
+            rec_type = "mood_content_mismatch"
             title = "The opening music is calmer than the rest of the video"
             first = (f"The hook '{sec['topic']}' should grab attention, but the music here is calmer than in the "
                      f"rest of the video (energy {energy:+.2f} vs. average {avg:+.2f})")
@@ -279,7 +283,7 @@ def rule_r7_mood_content_mismatch(segments: list[dict], c1: dict, c3: dict) -> l
             evidence.append(f"The music here sounds like: {label}")
         comments = negative_comments_near(c3, sec["start_s"], sec["end_s"])
         evidence += [comment_evidence(c) for c in comments]
-        recs.append(make_rec("R7_mood_content_mismatch", "mood_content_mismatch", "high" if comments else "medium",
+        recs.append(make_rec("R7_mood_content_mismatch", rec_type, "high" if comments else "medium",
                              sec["start_s"], sec["end_s"], title, evidence, suggestion,
                              confidence(1 + (1 if comments else 0))))   # audio + transcript agree
     return recs
@@ -301,7 +305,7 @@ def rule_r8_music_too_loud(audio_problems: list, c3: dict) -> list[dict]:
         support = (1 if loud_complaints else 0) + (1 if comments else 0)
         recs.append(make_rec("R8_music_too_loud", "music_too_loud", "high" if support else p["severity"],
                              p["start_s"], p["end_s"],
-                             f"Background music too loud under the narration during {mmss(p['start_s'])}–{mmss(p['end_s'])}",
+                             f"Background sound too loud under the narration during {mmss(p['start_s'])}–{mmss(p['end_s'])}",
                              evidence,
                              "Lower the background music while someone is speaking (by about 10–15 dB), "
                              "or use automatic ducking in your editor.",

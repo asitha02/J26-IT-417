@@ -69,10 +69,11 @@ def detect_problems(metrics: list[dict]) -> list[dict]:
         severity = "high" if worst > MUSIC_NEARLY_AS_LOUD_DB else "medium"
         problems.append(_problem(
             "music_too_loud", severity, start, end,
-            f"The background music is too loud under the narration during {mmss(start)}–{mmss(end)}.",
-            [f"At its loudest the music is only {gap:.0f} dB quieter than the voice" if gap > 0
-             else f"At its loudest the music is {-gap:.0f} dB LOUDER than the voice",
-             f"Music should stay more than {-MUSIC_UNDER_SPEECH_LIMIT_DB} dB below the voice so the narration is easy to follow"],
+            f"The background sound (music or noise) is too loud under the narration during {mmss(start)}–{mmss(end)}.",
+            [f"At its loudest the background is only {gap:.0f} dB quieter than the voice" if gap > 0
+             else f"At its loudest the background is {-gap:.0f} dB LOUDER than the voice",
+             f"Background music and sounds should stay more than {-MUSIC_UNDER_SPEECH_LIMIT_DB} dB below the voice "
+             f"so the narration is easy to follow"],
         ))
 
     # 2. Distortion (clipping)

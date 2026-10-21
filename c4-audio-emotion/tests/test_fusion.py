@@ -244,3 +244,12 @@ def test_every_recommendation_links_to_its_moment_in_the_video():
     recs = generate_recommendations(timeline(LOW_100_145), NEG_C3, GAPS, 180, C1, [LOUD], url)
     assert all(r["link"].startswith(url) for r in recs)
     assert {"R7_mood_content_mismatch", "R8_music_too_loud"} & {r["rule_id"] for r in recs}
+
+
+def test_r4_and_r7_on_the_same_explanation_become_one_card():
+    segs = timeline(lambda i: 0.4 if 24 <= i <= 31 else 0.0)            # lively during 120-165 s
+    recs = generate_recommendations(segs, NO_C3, GAPS, 180, C1)
+    same_place = [r for r in recs if r["type"] == "intense_audio_complex_content"]
+    assert len(same_place) == 1
+    text = " ".join(same_place[0]["evidence"])
+    assert "Knowledge gap 'Hawking radiation'" in text and "This part explains 'Hawking radiation'" in text
