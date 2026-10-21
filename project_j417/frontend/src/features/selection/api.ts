@@ -1,4 +1,4 @@
-import type { LibraryItem, RankRequest, RankResponse } from "./types";
+﻿import type { LabelRequest, LabelStats, LibraryItem, ModelInfo, RankRequest, RankResponse } from "./types";
 
 const BASE = "/api/segments";
 
@@ -26,3 +26,21 @@ export const rankSegments = (body: RankRequest) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+export const setLabel = async (body: LabelRequest) => {
+  const res = await fetch(`${BASE}/labels`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(res.statusText);
+};
+
+export const getLabelStats = () => request<LabelStats>(`${BASE}/labels/stats`);
+
+export const getModel = () => request<ModelInfo>(`${BASE}/model`);
+
+export const trainRanker = () => request<ModelInfo>(`${BASE}/train`, { method: "POST" });
+
+export const labelsExportUrl = `${BASE}/labels`;
+

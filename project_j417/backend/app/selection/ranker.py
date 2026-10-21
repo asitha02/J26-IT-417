@@ -23,6 +23,8 @@ import threading
 from collections import Counter
 from dataclasses import dataclass, field
 
+import numpy as np
+
 log = logging.getLogger(__name__)
 
 _TOKEN = re.compile(r"\w+", re.UNICODE)
@@ -51,12 +53,14 @@ class Window:
     confidence: float | None
     tokens: list[str] = field(repr=False, default_factory=list)
     vec: list[float] | None = field(repr=False, default=None)
+    video_end: float = 0.0
 
 
 def build_windows(source_id: str, segments: list[dict], window_sec: float = 30.0) -> list[Window]:
     """Group consecutive segments into windows of >= window_sec, advancing by ~half a window."""
     windows: list[Window] = []
     seen: set[str] = set()
+    video_end = float(segments[-1]["end"]) if segments else 0.0
     n, i = len(segments), 0
     while i < n:
         j, start = i, float(segments[i]["start"])
@@ -77,6 +81,7 @@ def build_windows(source_id: str, segments: list[dict], window_sec: float = 30.0
                     text,
                     sum(confs) / len(confs) if confs else None,
                     tokens,
+                    video_end=video_end,
                 )
             )
         if last >= n - 1:
@@ -164,6 +169,7 @@ class RankedClip:
     score: float
     lexical: float
     semantic: float | None
+    features: dict[str, float] = field(default_factory=dict)
 
 
 def rank_windows(
@@ -173,38 +179,68 @@ def rank_windows(
     top_k: int = 10,
     per_video_max: int | None = 3,
     max_overlap: float = 0.3,
+    model=None,
 ) -> tuple[list[RankedClip], str]:
-    """Return (best distinct clips, method) where method is 'hybrid' or 'bm25'.
+    """Return (best distinct clips, method); method is 'learned', 'hybrid' or 'bm25'.
 
-    Windows that already carry a stored `vec` are not re-embedded; freshly computed vectors are
-    written back onto the windows so the caller can persist them.
+    `model` is an optional trained LearnedRanker; it replaces the fixed 35/65 blend when the
+    semantic signal is available. Windows that already carry a stored `vec` are not re-embedded;
+    freshly computed vectors are written back onto the windows so the caller can persist them.
     """
     if not windows:
         return [], "bm25"
 
-    raw_lex = bm25_scores(tokenize(query), [w.tokens for w in windows])
+    q_tokens = tokenize(query)
+    q_set = set(q_tokens)
+    raw_lex = bm25_scores(q_tokens, [w.tokens for w in windows])
     lexical = _minmax(raw_lex, flat=1.0 if max(raw_lex) > 0 else 0.0)  # all-equal but matching = match
 
     semantic: list[float] | None = None
+    cosine: list[float] = [0.0] * len(windows)
     method = "bm25"
     if embedder is not None and embedder.load():
-        import numpy as np
-
         todo = [w for w in windows if w.vec is None]
         if todo:
             for w, v in zip(todo, embedder.embed_docs([w.text for w in todo])):
                 w.vec = v
         matrix = np.asarray([w.vec for w in windows], dtype=np.float32)
         q = np.asarray(embedder.embed_query(query), dtype=np.float32)
-        semantic = _minmax((matrix @ q).tolist(), flat=0.5)  # vectors are L2-normalised -> cosine
+        cosine = (matrix @ q).tolist()  # vectors are L2-normalised -> cosine
+        semantic = _minmax(cosine, flat=0.5)
         method = "hybrid"
+
+    feats: list[dict[str, float]] = []
+    for i, w in enumerate(windows):
+        span = max(w.end - w.start, 1.0)
+        feats.append(
+            {
+                "lexical": lexical[i],
+                "semantic": 0.0 if semantic is None else semantic[i],
+                "bm25_log": math.log1p(raw_lex[i]),
+                "cosine": cosine[i],
+                "coverage": len(q_set & set(w.tokens)) / len(q_set) if q_set else 0.0,
+                "density": min(len(w.tokens) / span / 3.0, 1.0),
+                "confidence": w.confidence if w.confidence is not None else 0.8,
+                "position": w.start / w.video_end if w.video_end else 0.0,
+                "length": min(span / 60.0, 1.0),
+            }
+        )
+
+    learned = None
+    if model is not None and semantic is not None:  # the model was trained with the semantic signal
+        learned = model.score(np.asarray([[f[n] for n in model.features] for f in feats]))
+        method = "learned"
 
     ranked: list[RankedClip] = []
     for i, w in enumerate(windows):
-        base = lexical[i] if semantic is None else LEXICAL_WEIGHT * lexical[i] + SEMANTIC_WEIGHT * semantic[i]
-        quality = 0.85 + 0.15 * (w.confidence if w.confidence is not None else 0.8)
-        ranked.append(RankedClip(w, round(base * quality, 4), round(lexical[i], 4),
-                                 None if semantic is None else round(semantic[i], 4)))
+        if learned is not None:
+            score = float(learned[i])
+        else:
+            base = lexical[i] if semantic is None else LEXICAL_WEIGHT * lexical[i] + SEMANTIC_WEIGHT * semantic[i]
+            score = base * (0.85 + 0.15 * feats[i]["confidence"])
+        ranked.append(RankedClip(w, round(score, 4), round(lexical[i], 4),
+                                 None if semantic is None else round(semantic[i], 4),
+                                 {k: round(v, 4) for k, v in feats[i].items()}))
     ranked.sort(key=lambda c: c.score, reverse=True)
 
     picked: list[RankedClip] = []

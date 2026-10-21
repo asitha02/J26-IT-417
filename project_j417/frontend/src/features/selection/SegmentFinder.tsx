@@ -1,7 +1,14 @@
 import { FormEvent, useState } from "react";
 import { formatTime } from "../transcription/format";
-import { useLibrary, useRank } from "./hooks";
+import ModelPanel from "./ModelPanel";
+import { useLibrary, useModel, useRank, useSetLabel } from "./hooks";
 import type { Clip } from "./types";
+
+const METHOD_TEXT = {
+  learned: "trained ranker",
+  hybrid: "fixed keyword + meaning blend",
+  bm25: "keyword only (BM25)",
+} as const;
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200";
@@ -24,13 +31,41 @@ export default function SegmentFinder() {
   const [windowSec, setWindowSec] = useState(30);
   const [perVideo, setPerVideo] = useState(3);
   const [selected, setSelected] = useState<string[]>([]);
+  const [ranker, setRanker] = useState<"auto" | "fixed">("auto");
+  const model = useModel();
+  const setLabel = useSetLabel();
+  // Labels given to the clips of the currently shown result, keyed by source + start time.
+  const [labels, setLabels] = useState<Record<string, 0 | 1>>({});
+  const clipKey = (c: Clip) => `${c.source_id}@${c.start}`;
+
+  const mark = (c: Clip, value: 0 | 1) => {
+    const current = labels[clipKey(c)];
+    const next = current === value ? null : value; // clicking the active choice clears it
+    setLabels((l) => {
+      const copy = { ...l };
+      if (next === null) delete copy[clipKey(c)];
+      else copy[clipKey(c)] = next;
+      return copy;
+    });
+    setLabel.mutate({
+      query: rank.data?.query ?? query.trim(),
+      audience: rank.data?.audience ?? undefined,
+      source_id: c.source_id,
+      start: c.start,
+      end: c.end,
+      label: next,
+      features: c.features,
+    });
+  };
 
   const toggle = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    setLabels({});
     rank.mutate({
+      ranker,
       query: query.trim(),
       audience: audience.trim() || undefined,
       source_ids: selected.length ? selected : undefined,
@@ -81,6 +116,17 @@ export default function SegmentFinder() {
           <label className="flex items-center gap-2">
             Max per video
             <input type="number" min={1} max={50} value={perVideo} onChange={(e) => setPerVideo(+e.target.value || 3)} className={`w-20 ${inputCls} py-1`} />
+          </label>
+          <label className="flex items-center gap-2">
+            Ranker
+            <select
+              value={ranker}
+              onChange={(e) => setRanker(e.target.value as "auto" | "fixed")}
+              className={`${inputCls} py-1`}
+            >
+              <option value="auto">{model.data?.trained ? "Trained model" : "Auto (no model trained yet)"}</option>
+              <option value="fixed">Fixed blend</option>
+            </select>
           </label>
         </div>
 
@@ -134,7 +180,8 @@ export default function SegmentFinder() {
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
             <p className="text-xs text-slate-500">
               {result.clips.length} clips from {result.videos_searched} videos · {result.windows_searched} candidates ·{" "}
-              {result.method === "hybrid" ? `semantic + keyword (${result.embedding_model})` : "keyword only (BM25)"} ·{" "}
+              {METHOD_TEXT[result.method]}
+              {result.embedding_model ? ` (${result.embedding_model})` : ""} ·{" "}
               {result.elapsed_sec}s
             </p>
             {result.clips.length > 0 && (
@@ -174,6 +221,25 @@ export default function SegmentFinder() {
                   </span>
                 </div>
                 <p className="leading-relaxed text-slate-700">{c.text}</p>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-slate-400">Was this useful?</span>
+                  {([1, 0] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => mark(c, v)}
+                      aria-pressed={labels[clipKey(c)] === v}
+                      className={`rounded-md border px-2 py-0.5 font-medium ${
+                        labels[clipKey(c)] === v
+                          ? v === 1
+                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            : "border-red-600 bg-red-600 text-white"
+                          : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {v === 1 ? "Relevant" : "Not relevant"}
+                    </button>
+                  ))}
+                </div>
               </li>
             ))}
             {result.clips.length === 0 && (
@@ -182,6 +248,8 @@ export default function SegmentFinder() {
           </ol>
         </section>
       )}
+
+      <ModelPanel />
     </div>
   );
 }

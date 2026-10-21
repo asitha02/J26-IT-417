@@ -6,7 +6,8 @@ pymongo>=4.13          # AsyncMongoClient (Motor's successor; same API style)
 yt-dlp>=2026.1.1       # keep this updated - YouTube changes break old versions
 faster-whisper>=1.1.0  # CTranslate2 Whisper + BatchedInferencePipeline
 fastembed>=0.7          # small ONNX embedding model for segment ranking (no torch needed)
-av>=14,<17            # av 17+ dropped open(metadata_errors=...), which faster-whisper 1.2.1 passes
+numpy>=1.26             # ranking features + the learned ranker
+av>=14,<17           # av 17+ dropped open(metadata_errors=...), which faster-whisper 1.2.1 passes
 
 # dev / tests
 pytest>=8
