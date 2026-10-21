@@ -47,19 +47,19 @@ def when(r, analysis):
 
 
 def pick_video():
-    """Choose a video that already has a Part 1 result (Part 2 needs it as input)."""
+    """Choose a video that already has an audio analysis (needed as input)."""
     items, error = call_backend("GET", "/audio/analyses")
     if error:
         st.error(error)
         return None
     if not items:
-        st.info("No audio analyses yet. Run Part 1 (Audio Analysis) for a video first.")
+        st.info("No analysed videos yet. Analyse a video on the Affective Background Audio Analysis page first.")
         return None
     ids = [i["video_id"] for i in items]
     titles = {i["video_id"]: i["title"] or i["video_id"] for i in items}
     preselected = st.session_state.get("selected_video")
     index = ids.index(preselected) if preselected in ids else 0
-    return st.selectbox("🎬 Video (from Part 1)", ids, index=index, format_func=lambda v: titles[v])
+    return st.selectbox("🎬 Analysed video", ids, index=index, format_func=lambda v: titles[v])
 
 
 # ---------- 1. plain-language summary ----------
@@ -233,7 +233,7 @@ def show_inputs(report):
                 st.write(f"- {mmss(cm['t_s'])} '{cm['text']}' ({cm['sentiment']:+.1f})")
 
 
-hero("Part 2 · Content Enhancement Recommendations",
+hero("Recommendations for Enhancements",
      "Your audio analysis combined with the transcript, knowledge gaps and viewer comments: "
      "what happened, what to fix first, and why.", notes="💡 ♫ ⭐")
 
@@ -259,7 +259,7 @@ if report and report["video_id"] == video_id:
     show_sections(report, analysis)
     show_validation(report)
     show_inputs(report)
-    st.download_button("Download JSON (Part 2)", data=json.dumps(report, indent=2),
+    st.download_button("Download the recommendations (JSON)", data=json.dumps(report, indent=2),
                        file_name=f"c4_recommendations_{report['video_id']}.json", mime="application/json")
 elif video_id:
     st.info("Click **Generate recommendations** to combine the inputs for this video.")

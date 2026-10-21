@@ -54,12 +54,39 @@ def show_sidebar():
     if not items:
         st.sidebar.caption("No analyses yet.")
     for item in items:
-        if st.sidebar.button(item["title"] or item["video_id"], key=f"a_{item['video_id']}", width="stretch"):
-            data, error = call_backend("GET", f"/audio/analyses/{item['video_id']}")
+        vid = item["video_id"]
+        open_col, delete_col = st.sidebar.columns([5, 1], vertical_alignment="center")
+        if open_col.button(item["title"] or vid, key=f"a_{vid}", width="stretch"):
+            data, error = call_backend("GET", f"/audio/analyses/{vid}")
             if error:
                 st.sidebar.error(error)
             else:
                 st.session_state.audio_result = data
+        # The bin icon opens a small confirmation box, so nothing is deleted by one accidental click.
+        with delete_col.popover("🗑", help="Delete this analysis"):
+            st.write(f"Delete **{item['title'] or vid}** and its recommendations?")
+            if st.button("Yes, delete", key=f"del_{vid}", type="primary"):
+                delete_analysis(f"/audio/analyses/{vid}", vid)
+    if items:
+        with st.sidebar.popover("🗑 Delete all analyses", width="stretch"):
+            st.write(f"Delete all **{len(items)}** saved analyses and their recommendations? This cannot be undone.")
+            if st.button("Yes, delete all", key="del_all", type="primary"):
+                delete_analysis("/audio/analyses", None)
+
+
+def delete_analysis(path: str, video_id):
+    """Ask the backend to delete, forget it on this page too, and redraw."""
+    _, error = call_backend("DELETE", path)
+    if error:
+        st.sidebar.error(error)
+        return
+    shown = st.session_state.get("audio_result")
+    if shown and (video_id is None or shown["video_id"] == video_id):
+        st.session_state.audio_result = None
+    report = st.session_state.get("report")
+    if report and (video_id is None or report["video_id"] == video_id):
+        st.session_state.report = None
+    st.rerun()
 
 
 @st.fragment(run_every=3)
@@ -170,14 +197,14 @@ def show_result(r: dict):
     st.divider()
     st.session_state.selected_video = r["video_id"]
     if processing:
-        st.caption("💡 Part 2 (recommendations) unlocks when the separation is finished.")
+        st.caption("💡 The recommendations unlock when the separation is finished.")
     else:
-        st.page_link("recommendations.py", label="Go to Part 2: Recommendations for this video →", icon="💡")
-    st.download_button("Download JSON (Part 1)", data=json.dumps(r, indent=2),
+        st.page_link("recommendations.py", label="See the recommendations for enhancements →", icon="💡")
+    st.download_button("Download the analysis (JSON)", data=json.dumps(r, indent=2),
                        file_name=f"c4_audio_{r['video_id']}.json", mime="application/json")
 
 
-hero("Part 1 · Affective Audio Analysis",
+hero("Affective Background Audio Analysis",
      "Separates the narration from the background music, then shows the music's emotion over time "
      "and measures audio problems (first 3 minutes of the video).", notes="♪ ♫ 𝄞 🎧")
 show_sidebar()

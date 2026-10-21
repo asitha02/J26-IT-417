@@ -67,5 +67,10 @@ def list_summaries(collection: str = AUDIO_ANALYSES_COLLECTION) -> list:
 
 
 def delete(video_id: str, collection: str = AUDIO_ANALYSES_COLLECTION) -> None:
-    """Delete the document for this video (used by the test script to clean up)."""
+    """Delete the document for this video."""
     get_collection(collection).delete_one({"video_id": video_id})
+
+
+def delete_all(collection: str) -> int:
+    """Delete every document in ONE of C4's own collections; returns how many were removed."""
+    return get_collection(collection).delete_many({}).deleted_count

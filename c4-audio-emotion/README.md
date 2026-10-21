@@ -66,8 +66,11 @@ Frontend (second terminal, same folder, backend must be running):
 venv\Scripts\python -m streamlit run frontend/app.py
 ```
 The app opens at http://localhost:8501 with two pages in the sidebar:
-1. **1 · Audio Analysis**: paste a YouTube link, click **Analyze audio**. A first look appears in ~15 s; the voice/music separation then finishes in the background (~2 min, with a progress bar) and the page updates itself.
-2. **2 · Recommendations**: pick the video, click **Generate recommendations** (under a second).
+1. **Affective Background Audio Analysis**: paste a YouTube link, click **Analyze audio**. A first look appears in ~15 s; the voice/music separation then finishes in the background (~2 min, with a progress bar) and the page updates itself.
+2. **Recommendations for Enhancements**: pick the video, click **Generate recommendations** (under a second).
+
+Saved analyses are listed in the sidebar; the 🗑 next to each one deletes it (with a confirmation), and **Delete all analyses** clears the list. Only C4's own results are deleted.
+The backend address is not shown on the page; to change it set `C4_BACKEND_URL` before starting Streamlit. Opening http://localhost:8000 shows the API docs.
 
 Good demo video: `https://www.youtube.com/watch?v=e-P5IFTqB98` (has its own dummy C1/C2/C3 data).
 

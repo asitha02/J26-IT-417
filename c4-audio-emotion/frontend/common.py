@@ -3,9 +3,15 @@ Helpers shared by both pages: backend calls, time formatting, labels and the cha
 Colours match the theme in .streamlit/config.toml; chart backgrounds are transparent so the
 same charts look right in light and dark mode.
 """
+import os
+
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+
+# Where the FastAPI backend runs. Not shown on the page: it is an address for the program, not a website.
+# To use another address, set the environment variable C4_BACKEND_URL before starting Streamlit.
+BACKEND_URL = os.getenv("C4_BACKEND_URL", "http://localhost:8000")
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 SEVERITY_ICON = {"high": "🔴", "medium": "🟠", "low": "🟢"}
@@ -33,11 +39,12 @@ def call_backend(method: str, path: str, **kwargs):
     Call the FastAPI backend and return (data, error_message).
     Exactly one of the two is None.
     """
-    url = st.session_state.backend_url.rstrip("/") + path
+    base = st.session_state.get("backend_url", BACKEND_URL)   # tests can point it elsewhere
+    url = base.rstrip("/") + path
     try:
         response = requests.request(method, url, timeout=600, **kwargs)
     except requests.exceptions.ConnectionError:
-        return None, f"Cannot reach the backend at {st.session_state.backend_url}. Is uvicorn running?"
+        return None, f"Cannot reach the backend at {base}. Is uvicorn running?"
     except requests.exceptions.Timeout:
         return None, "The backend took too long to answer (over 10 minutes)."
 

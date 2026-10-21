@@ -17,7 +17,7 @@ import threading
 from datetime import datetime, timezone
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pymongo.errors import PyMongoError
 
 from backend import db
@@ -58,6 +58,12 @@ def database_error(request: Request, exc: PyMongoError):
     """Any MongoDB problem -> a clear 503 error instead of a crash."""
     logger.exception("Database error")
     return JSONResponse(status_code=503, content={"detail": "Database unavailable. Check MONGODB_URI and network access."})
+
+
+@app.get("/", include_in_schema=False)
+def home():
+    """Opening http://localhost:8000 in a browser shows the API docs instead of 'Not Found'."""
+    return RedirectResponse("/docs")
 
 
 @app.get("/health")
@@ -157,6 +163,26 @@ def get_audio_analysis(video_id: str):
     return analysis
 
 
+@app.delete("/audio/analyses/{video_id}")
+def delete_audio_analysis(video_id: str):
+    """Remove a video's audio analysis AND its recommendations (only C4's own collections)."""
+    if db.get(video_id, AUDIO_ANALYSES_COLLECTION) is None:
+        raise HTTPException(status_code=404, detail=f"No audio analysis saved for video '{video_id}'.")
+    db.delete(video_id, AUDIO_ANALYSES_COLLECTION)
+    db.delete(video_id, RECOMMENDATIONS_COLLECTION)
+    logger.info("Deleted analysis and recommendations for %s", video_id)
+    return {"deleted": video_id}
+
+
+@app.delete("/audio/analyses")
+def delete_all_audio_analyses():
+    """Remove every saved audio analysis and recommendation report (only C4's own collections)."""
+    removed = db.delete_all(AUDIO_ANALYSES_COLLECTION)
+    db.delete_all(RECOMMENDATIONS_COLLECTION)
+    logger.info("Deleted all %d analyses", removed)
+    return {"deleted": removed}
+
+
 # ---------- Part 2: Content Enhancement Recommendations ----------
 
 @app.post("/recommendations/{video_id}", response_model=RecommendationReport)
@@ -164,10 +190,10 @@ def create_recommendations(video_id: str):
     """Fuse the saved Part 1 result with the C1, C2 and C3 outputs (dummy for now). Fast: no audio work."""
     analysis = db.get(video_id, AUDIO_ANALYSES_COLLECTION)
     if analysis is None:
-        raise HTTPException(status_code=404, detail="Run Part 1 (audio analysis) for this video first.")
+        raise HTTPException(status_code=404, detail="Analyse this video's audio first (Affective Background Audio Analysis page).")
     if analysis.get("status") != "complete":
-        raise HTTPException(status_code=409, detail="Part 1 is still separating voice and music for this video. "
-                                                    "Please try again in a minute.")
+        raise HTTPException(status_code=409, detail="The audio analysis is still separating voice and music for this "
+                                                    "video. Please try again in a minute.")
     report = build_report(analysis, load_c1_transcript(video_id), load_knowledge_gaps(video_id),
                           load_c3_sentiment(video_id))
     db.save(report, RECOMMENDATIONS_COLLECTION)

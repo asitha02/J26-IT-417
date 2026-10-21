@@ -302,3 +302,7 @@ One entry per day: what was done, what's next, blockers.
 - Plain-language summary, 4 donut charts (what needs attention, urgency, music mood, viewer comments), highlighted
   top-priority card, quick checklist with "watch" links; details (sections, validation, dummy inputs) in expanders.
 - All pages tested with Streamlit's AppTest (complete + processing states); 77 tests pass.
+- Page names without "Part 1/2": **Affective Background Audio Analysis** and **Recommendations for Enhancements**.
+- Backend URL field removed from the sidebar (address now from `C4_BACKEND_URL`, default localhost:8000); http://localhost:8000 redirects to the API docs.
+- Delete saved analyses: 🗑 per video with a confirmation, and "Delete all analyses"; `DELETE /audio/analyses/{id}` and
+  `DELETE /audio/analyses` remove C4's own documents only (analysis + recommendations). Tested via the API and the page.
