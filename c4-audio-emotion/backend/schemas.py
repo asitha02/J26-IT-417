@@ -125,6 +125,8 @@ class Validation(BaseModel):
     agreement: Optional[float]
     random_baseline: Optional[float]
     lift: Optional[float]
+    negative_comments: int
+    comments_explained: int
     explanation: str
     mock_data: bool
 
