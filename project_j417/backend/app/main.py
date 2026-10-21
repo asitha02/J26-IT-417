@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import db
 from app.config import get_settings
+from app.selection.ranker import Embedder
+from app.selection.router import router as selection_router
 from app.transcription.repository import Repository
 from app.transcription.router import router as transcription_router
 from app.transcription.transcriber import Transcriber
@@ -26,6 +28,13 @@ async def lifespan(app: FastAPI):
         app.state.transcriber = Transcriber(settings.asr())
         if settings.preload_model:  # warm the model in the background so job #1 starts fast
             app.state.warmup = asyncio.create_task(asyncio.to_thread(app.state.transcriber.load))
+    if getattr(app.state, "embedder", None) is None:
+        model = settings.embed_model.strip()
+        app.state.embedder = Embedder(
+            None if model.lower() in ("", "none") else model, str(settings.data_dir / "models")
+        )
+        if app.state.embedder.available and settings.preload_model:
+            asyncio.create_task(asyncio.to_thread(app.state.embedder.load))
     yield
     if owns_db:
         await db.close()
@@ -41,6 +50,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(transcription_router)
+    app.include_router(selection_router)
 
     @app.get("/api/health")
     async def health():

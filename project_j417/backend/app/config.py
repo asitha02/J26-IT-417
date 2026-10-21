@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     batch_size: int = 0
     beam_size: int = 5
 
+    # Segment-selection ranker: small ONNX embedding model (~33 MB). "none" = BM25 only.
+    embed_model: str = "BAAI/bge-small-en-v1.5"
+
     max_duration_sec: int = 4 * 3600
     max_concurrent_jobs: int = 1
     preload_model: bool = True

@@ -70,6 +70,10 @@ class Repository:
             return None
         return doc
 
+    async def list_transcripts(self, source_ids: list[str] | None = None) -> list[dict]:
+        query = {"source_id": {"$in": source_ids}} if source_ids else {}
+        return [doc async for doc in self.transcripts.find(query)]
+
     async def save_transcript(self, doc: dict) -> str:
         tid = transcript_key(doc["source_id"], doc["asr_model"])
         doc = {**doc, "_id": tid}

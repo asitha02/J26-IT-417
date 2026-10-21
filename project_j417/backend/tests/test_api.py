@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.config import AsrConfig, Settings
 from app.main import create_app
+from app.selection.ranker import Embedder
 from app.transcription import service
 from app.transcription.downloader import AudioResult, DownloadError, validate_url
 from app.transcription.repository import transcript_key
@@ -80,6 +81,7 @@ def client(tmp_path, monkeypatch):
     FakeTranscriber.calls = 0
     app = create_app()
     app.state.repo, app.state.transcriber = FakeRepo(), FakeTranscriber()
+    app.state.embedder = Embedder(None)  # no model download in tests
     app.dependency_overrides[__import__("app.config", fromlist=["x"]).get_settings] = lambda: settings
     with TestClient(app) as c:
         yield c, tmp_path
