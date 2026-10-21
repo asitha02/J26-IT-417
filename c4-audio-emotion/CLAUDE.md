@@ -98,12 +98,13 @@ Supervisor requirement: show ~50% of C4 as a **working UI (frontend + backend)**
 - Sinhala/multilingual features
 
 ### Definition of done (by 20 Oct)
-- [ ] `uvicorn` backend and `streamlit` frontend run locally from README instructions
-- [ ] Analyzing a real YouTube URL returns a real emotion timeline from my trained model
-- [ ] Recommendations are generated from fusion rules using dummy C3 + gap data
-- [ ] Results persist in MongoDB and can be reloaded
-- [ ] Training notebook with logged curves, baseline vs BiLSTM+attention comparison
-- [ ] README, PROGRESS.md, design-decisions doc, and a clean git history with milestone tags
+- [x] `uvicorn` backend and `streamlit` frontend run locally from README instructions (fresh-clone test 18 Oct)
+- [x] Analyzing a real YouTube URL returns a real emotion timeline from my trained model
+- [x] Recommendations are generated from fusion rules using dummy C1/C2/C3 data
+- [x] Results persist in MongoDB and can be reloaded
+- [x] Training notebook with logged curves, baseline vs BiLSTM+attention comparison
+- [x] Two-part UI (audio analysis page + recommendations page), separation, validation (added 19–21 Oct)
+- [ ] README, PROGRESS.md, design-decisions doc done; milestone tags still to be added
 
 ---
 
@@ -284,7 +285,7 @@ Create 3 variants (negative, mixed, positive) so the UI and rules can be demoed 
   `inputs` = `{ "audio_analysis_created_at", "c1_input", "c2_input", "c3_input" }` (dummy ones carry `"mock": true`),
   `section_summaries` (descriptive, one per C1 section),
   `recommendations` (8.1 recommendation shape **plus** `"link"`: YouTube URL with `&t=<start>s`),
-  `validation` = `{ "flagged_segments", "agreeing_segments", "agreement", "random_baseline", "lift", "mock_data": true }`
+  `validation` = `{ "flagged_segments", "agreeing_segments", "agreement", "random_baseline", "lift", "negative_comments", "comments_explained", "explanation", "mock_data": true }`
 
 **Dummy C1 input**: `mock_data/component1_transcript.json`:
 `{ "video_id", "sections": [ { "start_s", "end_s", "topic", "content_type": "hook|explanation|example|summary" } ] }`
@@ -347,6 +348,7 @@ Implemented in `backend/fusion.py` as small, separate, unit-tested rule function
 | R6_requested_topics | C3 requested topics not covered by any detected gap/segment topic | Topic list | Consider a follow-up video or section on these topics (low priority) |
 
 - **Change (18 Oct 2026, agreed):** R1, R2 and R4 use **relative** thresholds: a window is compared with the video's own average (low energy = arousal < average − 0.04; tense = arousal > average + 0.04 and valence < average − 0.04; intense over a gap = arousal > average + 0.04). R3 uses arousal standard deviation < 0.03 (≥ 6 windows). Reason: on speech + music videos the model's predictions stay near neutral (arousal ≈ −0.1..+0.2), so the absolute values in the table above never triggered. See `docs/DESIGN_DECISIONS.md`.
+- **Added (20–21 Oct, Part 2):** R7_mood_content_mismatch (music livelier than the video average during an explanation, or calmer in the hook; uses C1 sections), R8_music_too_loud (measured in Part 1; C3 loudness complaints / nearby negative comments raise it), R9_audio_quality (distortion, dead air). R5 is cross-checked with the measured loudness problem; R6 also treats C1 section topics as covered. R4 and R7-explanation share the type `intense_audio_complex_content`, so overlapping ones merge into one card. Evidence is in plain language and every recommendation has a `link`.
 - `confidence` (0–1): start at 0.5 for audio-only evidence; add for each corroborating independent signal (C3 comment nearby, knowledge gap overlap); cap at 0.95.
 - Merge overlapping recommendations of the same type; sort by severity, then confidence.
 - Every recommendation must include human-readable evidence (explainable, not a black box).

@@ -1,7 +1,7 @@
 # Design Decisions — C4 (Audio Emotion Analysis + Prescriptive Recommendations)
 
 Each decision in plain language: **what** I chose, **why**, and what I considered instead.
-Progress-presentation build, October 2026.
+Progress-presentation build, October 2026 (two-part version, 21 Oct).
 
 ---
 
@@ -136,52 +136,146 @@ The 0.04 delta and the R3 limit (std < 0.03) are **starting values** chosen from
 
 ---
 
-## 9. Backend, frontend and database
+## 9. Two parts, two pages (changed 19 Oct)
+
+The proposal describes two different jobs, so the component is split into two parts with their own endpoint and page:
+
+| | Part 1: Affective Audio Analysis | Part 2: Content Enhancement Recommendations |
+|---|---|---|
+| Type of output | **descriptive**: what the background audio sounds like, where the audio problems are | **descriptive + prescriptive**: what happened in each section and what to change |
+| Input | a YouTube link | Part 1 result + C1, C2, C3 outputs (dummy JSON for now) |
+| Endpoint / page | `POST /audio/analyze` / "1 · Audio Analysis" | `POST /recommendations/{video_id}` / "2 · Recommendations" |
+| Speed | ~1.5–2 min (download + separation + model) | < 1 s (no audio work) |
+
+Why: Part 2 is exactly where the other components' outputs come in. Keeping it separate means that in the final
+integration only the inputs change (dummy JSON → real outputs), and the audio analysis never has to be repeated.
+
+---
+
+## 10. Separating the narration from the background music (Demucs)
+
+**What:** Demucs (`htdemucs`, Meta, pretrained, used frozen) splits the audio into drums, bass, other and vocals.
+Speech = vocals; background = drums + bass + other. The emotion model then runs on the **background** track.
+
+**Why:**
+- The research question is about the **background** audio, not the voice.
+- My model was trained on DEAM, which is **music**, so the music-only track is closer to its training data. No retraining needed.
+- The separate tracks make it possible to **measure** whether the music is too loud under the voice.
+
+**Finding (mixed vs. music-only emotion):** separation lowers the predicted energy strongly (e.g. +0.28 → −0.02):
+the narrator's voice was inflating the arousal. Valence stays negative (−0.22 → −0.24), so the negative-valence bias
+is **not** caused by speech. A loudness-normalisation test changed almost nothing (arousal −0.02 → −0.01), so the
+difference is not a volume effect. Page 1 shows both versions (dotted lines = unseparated) so this is visible.
+
+**Cost:** ~1.5–2 min per 3-minute clip on CPU, still inside the "≤ 2× runtime" requirement.
+`USE_SOURCE_SEPARATION=false` switches it off (faster, analyses the mixed audio).
+
+---
+
+## 11. Measured audio problems (no AI on purpose)
+
+For each 10 s window: loudness of the voice and of the background (RMS in dB), how much quieter the background is,
+clipping (samples at maximum level) and silence. Problems: **background too loud under the narration** (less than
+10 dB below the voice for ≥ 15 s; high if within 3 dB), **distortion** and **dead air** (≥ 10 s).
+
+**Why plain measurements:** they are checkable by anyone and need no training data. They answer the functional
+requirement "identify excessive loudness, distortion, or sound effects dominating speech" and the survey
+(Q13: "distracting" 49 %, "too loud" 25.5 %, "poor quality" 37.3 %).
+Note: Demucs puts everything that isn't voice into the background, so this also catches loud noise or sound effects
+(e.g. "Me at the zoo" has no music, only outdoor noise). That is why the wording is "background sound (music or noise)".
+
+---
+
+## 12. Describing the music in words with CLAP (zero-shot)
+
+CLAP was trained on audio **and text**, so it can also embed a description like "tense dramatic cinematic music".
+Comparing the music's embedding with 9 such descriptions (cosine similarity → percentages with CLAP's own learned
+temperature) gives "the background music sounds like: tense dramatic cinematic (29 %)".
+Why: it reuses the model already loaded (no new dependency, no training) and supports the survey request
+"recommend more suitable audio" (Q15, 64.7 %). Limitation: the labels are not validated against human judgements.
+
+---
+
+## 13. More rules, merged cards, plain language and links (Part 2)
+
+| Rule | Uses | Fires when |
+|---|---|---|
+| R7 mood–content mismatch | Part 1 + C1 sections | music livelier than the video's average during an **explanation**, or calmer than average in the **hook** (survey: "mood doesn't match content", 31.4 %) |
+| R8 background too loud | Part 1 measurement + C3 | measured problem; a loudness complaint or a negative comment at that moment raises severity/confidence |
+| R9 audio quality | Part 1 measurement | distortion or dead air |
+| R5 (extended) | C3 + Part 1 | audio complaints are now cross-checked with the **measured** loudness problem |
+
+- **Merging:** R4 (intense music during a knowledge gap) and R7 (music too lively for an explanation) give the same advice,
+  so they share a type and overlapping ones become **one card** with all the evidence (transcript, gap, comment, energy, CLAP label).
+- **Plain language** (NFR usability): "energy" instead of arousal, "mood" instead of valence; numbers in brackets.
+- **Links** (FR "link recommendations to the source video with the timestamp"): every card opens YouTube at its start time.
+- **Descriptive section summaries:** for every C1 section: music mood + CLAP description, voice-vs-music loudness,
+  negative comments, knowledge gaps and measured problems.
+
+---
+
+## 14. Validation against audience comments (the research gap's core claim)
+
+The proposal asks whether flagged segments **match what real viewers react to**. Part 2 computes:
+- **agreement**: share of flagged sections with a negative comment within ±15 s;
+- **random baseline**: the same share for sections of the same length placed at every possible position (exact, not sampled), i.e. pure chance;
+- **lift** = agreement ÷ baseline (above 1 = better than chance), plus how many negative comments a flagged section explains.
+
+Why the baseline matters: with few comments and a ±15 s window, even random sections hit comments often.
+Example: "How A Star Is Born" scored 100 % agreement, but chance was 97 % → lift 1.03 = **no evidence**.
+"Black Holes Explained": 100 % vs. 54 % → lift 1.9.
+**Honest note:** these use DUMMY comments written by me, so they only demonstrate the method. With Component 3's real
+comments this becomes the actual evaluation (the "segment-level agreement" metric of the proposal).
+
+---
+
+## 15. Backend, frontend and database
 
 - **FastAPI** (backend): a small, fast Python web framework. It checks request/response shapes automatically (Pydantic) and generates test docs at `/docs`.
-- **Streamlit + Plotly** (frontend): a working web UI written in Python, with interactive charts. Good for a research demo; the final merged dashboard is out of scope.
-- **MongoDB Atlas** (shared team database `project_j417`, collection `analyses`): one JSON document per video fits the analysis result naturally. A **unique index on `video_id`** means re-analysing replaces the old result. It doubles as a **cache**: reopening a video is instant with no recomputation.
+- **Streamlit + Plotly** (frontend): two pages (`st.navigation`), written in Python, with interactive charts.
+- **MongoDB Atlas** (shared team database `project_j417`): collections `audio_analyses` (Part 1) and `recommendation_reports` (Part 2). A **unique index on `video_id`** means re-analysing replaces the old result. It doubles as a **cache**: reopening a video is instant.
 - **Secrets** live in `.env` (never committed). `.env.example` shows the settings without values.
 
 ---
 
-## 10. Dummy data for other components
+## 16. Dummy data for other components
 
-C3 (audience feedback) and the knowledge-gap detection belong to other components that are not finished yet. To build and demo the fusion now:
-- `mock_data/` holds **three C3 variants** (negative, mixed, positive), each tied to a demo video, plus dummy gaps and a default for any other video.
+C1 (transcript sections), C2 (knowledge gaps) and C3 (audience feedback) belong to other components that are not finished yet:
+- `mock_data/` holds dummy outputs for each demo video plus a `default` for any other video.
 - All format knowledge is in **one file** (`backend/mock_loader.py`). When the real outputs exist, only that file changes.
-- Every dummy input is marked `"mock": true` in the JSON and labelled **DUMMY DATA** in the UI, so nobody mistakes it for real analysis.
+- Every dummy input is marked `"mock": true` and labelled **DUMMY DATA** in the UI.
 
 ---
 
-## 11. Reliability decisions
+## 17. Reliability decisions
 
-- **Only the first 3 minutes are downloaded, and quickly.** Letting ffmpeg stream the first 3 minutes took ~90 s, because YouTube limits streaming speed (to about 2× playback speed). Instead, the backend asks YouTube's server for just the **first few MB of the audio file** in one normal HTTP request (a "Range" request; ~3–4 MB even for a 77-minute video), and ffmpeg converts that piece to 48 kHz mono WAV. A full analysis went from **~105 s to ~9 s**. If the fast method isn't possible (e.g. the file size is unknown), the backend falls back to the slower streaming method automatically.
-- **Downloads are checked for completeness and retried (up to 3 attempts).** A dropped internet connection was found to either crash ffmpeg or silently cut the audio short (e.g. 104 s instead of 180 s). Analysing part of a video without saying so would be a hidden error, so the backend retries and otherwise returns a clear message.
-- **Temporary audio files are deleted automatically** after each analysis.
-- **Clear error messages** for: invalid URL, unavailable/private video, live streams, failed download, database down, backend not running.
-- **49 automatic tests** (`pytest`) cover URL parsing, windowing, padding, download retries, every fusion rule and the dummy loader.
-
----
-
-## 12. Known limitations (honest)
-
-1. **Domain mismatch:** DEAM is **music only**; YouTube science videos mix **speech + music**. Predictions describe the overall audio mood, and they cluster near neutral. Separating music from speech (Demucs) is future work.
-2. **Valence leans negative on speech:** on all 7 test videos the mean valence was negative (-0.19 to -0.29), while arousal varied sensibly (calm narration -0.13, lively animated explainer +0.28). Likely a bias from training on music only (speech lacks musical cues like major/minor key). This is another reason the rules compare each video with its own average.
-3. **Short training sequences:** most DEAM clips give ~5 windows; inference uses 35. The model still produced plausible timelines, but this mismatch was not formally evaluated.
-4. **Noisy labels:** valence/arousal ratings are subjective; annotators disagree.
-5. **One random seed:** small differences between models may not be significant.
-6. **Thresholds tuned on few videos:** relative delta 0.04 and R3 std 0.03 are starting values.
-7. **Comment relevance isn't checked:** a negative comment near a section counts as support even if it is about something else (e.g. loudness instead of pace). Topic matching is C3's job (future work).
-8. **Dummy C3 and knowledge-gap data:** the fusion logic is real; its inputs are placeholders.
-9. **Only the first 3 minutes** of each video are analysed.
+- **Fast download:** only the first few MB of the audio file are requested (HTTP "Range" request) instead of streaming with ffmpeg (~90 s, because YouTube limits streaming speed). Download went from ~96 s to ~3 s; the old method is the automatic fallback.
+- **Completeness check + up to 3 attempts:** a dropped connection was found to crash ffmpeg or silently cut the audio short (104 s instead of 180 s).
+- **Temporary audio files are deleted automatically** (NFR security/ethics); separated tracks are never stored.
+- **Clear error messages:** invalid URL, unavailable/private video, live streams, failed download, database down, backend not running, Part 2 before Part 1.
+- **77 automatic tests** (`pytest`): URL parsing, windowing, download retries, separation helpers, loudness measurements, the whole Part 1 pipeline and Part 2 report on synthetic audio, every rule, validation, dummy loader.
 
 ---
 
-## 13. Future work (towards the final submission)
+## 18. Known limitations (honest)
 
-- Demucs music/speech separation; extra features (VGGish, openSMILE); CNN front-end; PMEmo dataset.
-- Multi-seed training and significance testing.
-- Real C3 output and a real knowledge graph (PyKEEN/TransE over Neo4j from C1/C2).
-- Full-length videos; optional LLM rephrasing of suggestions (rules still decide).
-- Integration into the team's merged dashboard and browser extension.
+1. **Domain mismatch:** DEAM is music only; science videos mix speech + music. Separation helps, but the background track still contains residual voice and sound effects.
+2. **Valence leans negative:** mean valence was negative on all test videos (−0.19 to −0.29), also after separation. Likely the quiet, ambient style of science-video music and the music-only training data. Rules therefore compare each video with its own average.
+3. **Separation is slow on CPU** (~1.5–2 min per 3-minute clip).
+4. **Short training sequences:** most DEAM clips give ~5 windows; inference uses 35.
+5. **Noisy labels** and **one random seed**: small differences between models may not be significant.
+6. **Thresholds tuned on few videos** (relative delta 0.04, R3 std 0.03, loudness 10 dB) are starting values.
+7. **Comment relevance isn't checked:** any negative comment near a section counts as support (topic matching is C3's job).
+8. **Dummy C1, C2, C3 data:** the fusion and validation logic are real; their inputs are placeholders, so the validation numbers demonstrate the method only.
+9. **CLAP music descriptions** are zero-shot and not checked against human labels.
+10. **Only the first 3 minutes** of each video are analysed.
+
+---
+
+## 19. Future work (towards the final submission)
+
+- Real C1/C2/C3 outputs; real validation with Component 3's comments; recommendation relevance rated by creators; SUS usability test.
+- Knowledge graph with PyKEEN/TransE over Neo4j (C1/C2).
+- Extra features (VGGish, openSMILE/eGeMAPS), CNN front-end, PMEmo; multi-seed training, cross-validation.
+- Faster separation (GPU or a lighter model), full-length videos, batch processing.
+- Optional LLM rephrasing of suggestions (rules still decide); integration into the team dashboard and browser extension.

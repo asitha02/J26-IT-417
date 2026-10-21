@@ -1,27 +1,28 @@
 # C4 — Audio Emotion Analysis + Prescriptive Recommendations
 
-Component 4 of the IT4010 group research project (SLIIT). Given a YouTube video, C4:
+Component 4 of the IT4010 group research project (SLIIT). Two parts, each with its own page:
 
-1. predicts the emotional tone of the audio over time (**valence**: negative ↔ positive, **arousal**: calm ↔ energetic),
-2. combines it with audience sentiment (C3) and knowledge-gap signals (dummy data for now), and
-3. gives the creator **prescriptive recommendations**: what to change, where, and why.
+1. **Part 1, Affective Audio Analysis** (descriptive): separates the narration from the background music, predicts the
+   music's emotion over time (**valence**: negative ↔ positive, **arousal**: calm ↔ energetic), describes the music in
+   words and measures audio problems (background too loud under the voice, distortion, dead air).
+2. **Part 2, Content Enhancement Recommendations** (descriptive + prescriptive): combines Part 1 with the outputs of
+   C1 (transcript sections), C2 (knowledge gaps) and C3 (audience comments), dummy data for now, into a description of
+   each section, ranked recommendations with evidence and YouTube links, and a validation against viewer comments.
 
-> Status: progress-presentation build (~50% of the full component). Work in progress.
+> Status: progress-presentation build (~50% of the full component).
 
 ## Architecture
 
 ```
-[Streamlit UI] --POST /analyze (youtube_url)--> [FastAPI backend]
-                                                     |
-   1. validate URL, check MongoDB cache (video_id)   |
-   2. download audio -> trim to 3 min -> 10 s windows (5 s hop)
-   3. CLAP embeddings -> BiLSTM + attention head -> valence/arousal per window
-   4. load dummy C3 sentiment + dummy knowledge gaps
-   5. fusion rules -> recommendations
-   6. save to MongoDB
-   7. return JSON
-                                                     |
-[Streamlit UI] <------------ JSON ------------------+
+PART 1  [Page 1] --POST /audio/analyze--> [FastAPI]
+          download first 3 min (fast Range request) -> Demucs: voice | background
+          background + mixed -> 10 s windows -> CLAP -> BiLSTM+attention -> valence/arousal per window
+          voice vs. background loudness -> audio problems;  CLAP text matching -> "sounds like ..."
+          -> MongoDB "audio_analyses"
+PART 2  [Page 2] --POST /recommendations/{id}--> [FastAPI]
+          Part 1 result + C1 sections + C2 gaps + C3 comments (dummy JSON)
+          -> section summaries (descriptive) -> rules R1-R9 (prescriptive) -> validation vs. comments
+          -> MongoDB "recommendation_reports"
 ```
 
 ## Setup
@@ -47,6 +48,7 @@ Requirements: Windows, Python 3.10+ (developed on 3.13), Git. All commands run f
    venv\Scripts\python -m pytest                        (automatic tests, no internet needed)
    venv\Scripts\python -m scripts.test_audio_download   (real download -> windows)
    venv\Scripts\python -m scripts.test_clap_embeddings  (first run downloads the ~600 MB CLAP model)
+   venv\Scripts\python -m scripts.test_separation       (Demucs voice/music separation on a real video)
    ```
 
 ## Running
@@ -63,7 +65,11 @@ Frontend (second terminal, same folder, backend must be running):
 ```
 venv\Scripts\python -m streamlit run frontend/app.py
 ```
-The page opens at http://localhost:8501. Paste a YouTube link and click **Analyze**.
+The app opens at http://localhost:8501 with two pages in the sidebar:
+1. **1 · Audio Analysis**: paste a YouTube link, click **Analyze audio** (about 1.5–2 minutes for a new video).
+2. **2 · Recommendations**: pick the video, click **Generate recommendations** (under a second).
+
+Good demo video: `https://www.youtube.com/watch?v=e-P5IFTqB98` (has its own dummy C1/C2/C3 data).
 
 ## Model weights
 
@@ -78,10 +84,10 @@ The first start downloads the pretrained CLAP model (~600 MB) from Hugging Face;
 
 ## Known limitations
 
-- Trained on DEAM (music only); YouTube science videos mix speech and music, so predictions describe the overall audio mood and stay close to neutral.
-- Audience sentiment (C3) and knowledge gaps are **dummy data** (`mock_data/`, marked `"mock": true`) until those components are connected.
-- Only the first 3 minutes of each video are analysed.
-- Rule thresholds are starting values to tune; results come from a single training seed.
+- Trained on DEAM (music only). Demucs separation brings the input closer to music, but the background track still contains residual voice and sound effects; valence leans negative on science videos.
+- C1, C2 and C3 inputs are **dummy data** (`mock_data/`, marked `"mock": true`), so the validation numbers only demonstrate the method.
+- Separation takes about 1.5–2 minutes per video on CPU; only the first 3 minutes of each video are analysed.
+- Rule thresholds are starting values to tune; model results come from a single training seed.
 
 Full explanation: [`docs/DESIGN_DECISIONS.md`](docs/DESIGN_DECISIONS.md). Pretrained vs. own work: [`docs/CUSTOMIZATION_TABLE.md`](docs/CUSTOMIZATION_TABLE.md).
 
@@ -98,4 +104,4 @@ Full explanation: [`docs/DESIGN_DECISIONS.md`](docs/DESIGN_DECISIONS.md). Pretra
 ```
 venv\Scripts\python -m pytest
 ```
-49 automatic tests (URL parsing, windowing, fast download + fallback + retries, fusion rules R1–R6, dummy-data loader).
+77 automatic tests (URL parsing, windowing, download fallback + retries, separation helpers, loudness measurements, Part 1 pipeline and Part 2 report on synthetic audio, rules R1–R9, validation, dummy-data loader). Real-video checks: `scripts/test_separation.py`, `scripts/test_clap_embeddings.py`.

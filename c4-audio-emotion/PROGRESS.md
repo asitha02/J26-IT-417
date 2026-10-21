@@ -250,3 +250,36 @@ One entry per day: what was done, what's next, blockers.
 - Evidence in plain language ("energy" = arousal, "mood" = valence, numbers in brackets); every recommendation has a
   `link` that opens the video at its start time.
 - 68 tests pass.
+
+
+## Day 16 — 21 Oct 2026 (two-part component, continued)
+
+**Block 5: validation against audience comments** (`backend/validation.py`)
+- Agreement (flagged sections with a negative comment within ±15 s), exact random baseline (same-length sections at
+  every 1 s position), lift = agreement ÷ baseline, negative comments explained. Whole-video recommendations are not counted.
+- 5 tests, including a hand-checked baseline (41/171).
+
+**Block 6: Part 2 report, endpoints and page**
+- `backend/report.py`: section summaries (descriptive: music mood + CLAP description, voice-vs-music loudness,
+  comments, gaps, measured problems), recommendations (prescriptive), validation.
+- `POST /recommendations/{video_id}` (404 "Run Part 1 first" if needed), `GET /recommendations[/{id}]`; collection `recommendation_reports`.
+- Page 2: pick a video from Part 1, dummy inputs in an expander (clearly labelled), section cards, music timeline with
+  flagged sections and comment markers, recommendation cards with "watch this moment" links, validation metrics, JSON download.
+
+**Block 7: end-to-end tests on real videos**
+- "Black Holes Explained": Part 1 98 s, Part 2 0.4 s; top card "Background sound too loud under the narration 00:00–00:20"
+  (confidence 0.9: measurement + complaint + comment agree); validation 100 % vs. 54 % chance → lift 1.9 (dummy comments).
+- "How A Star Is Born": one merged card for the fusion explanation (transcript + CLAP "upbeat energetic electronic" +
+  comment + gap + energy); validation 100 % vs. 97 % chance → lift 1.03 = no evidence beyond chance (shows why the baseline matters).
+- "Me at the zoo" (19 s): works; flagged loud background = outdoor noise, not music → wording changed to "background sound (music or noise)".
+- Fixes: R4 and R7 on the same explanation now merge into one card (same type); wording of the loudness problem.
+- 77 tests pass.
+
+**Block 8: documentation**
+- DESIGN_DECISIONS sections 9–19 (two parts, Demucs + finding, measured problems, CLAP description, new rules,
+  validation, limitations, future work); CUSTOMIZATION_TABLE (Demucs, CLAP text, measurements, rules R1–R9, validation,
+  architecture); README (two-part architecture, pages, demo video, limitations, tests); CLAUDE.md (R7–R9, validation
+  fields, definition of done).
+
+**Next**
+- Commit, then tags `v0.3-fusion-ui` and `v1.0-progress`; screenshots of both pages for the slides.
