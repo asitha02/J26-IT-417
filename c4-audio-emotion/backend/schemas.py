@@ -54,7 +54,7 @@ class AudioSegment(BaseModel):
 
 
 class Separation(BaseModel):
-    method: str                     # "htdemucs" or "none"
+    method: str                     # "htdemucs", "none", or "pending" while separation runs
     speech_db: float
     music_db: float
 
@@ -87,8 +87,10 @@ class AudioAnalysisResponse(BaseModel):
     overall_mixed: Overall          # unseparated audio
     music_description: list[MusicLabel]
     audio_problems: list[AudioProblem]
-    status: str
+    status: str                     # "processing" (first look, separation running) / "complete" / "failed"
     created_at: str                 # ISO-8601 timestamp
+    error: Optional[str] = None     # set when status is "failed"
+    progress: Optional[float] = None    # 0..1 while the background separation runs
 
 
 # ---------- Part 2: Content Enhancement Recommendations ----------

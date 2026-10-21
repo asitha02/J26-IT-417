@@ -13,6 +13,7 @@ Two ways to download (download_complete_audio tries them in this order):
 import logging
 import re
 import subprocess
+import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -61,12 +62,29 @@ def extract_video_id(url: str):
     return None
 
 
+_info_cache = {}           # video_id -> (time fetched, yt-dlp info); YouTube's audio links stay valid for hours
+INFO_CACHE_SECONDS = 300
+
+
+def _youtube_info(video_id: str) -> dict:
+    """
+    Ask YouTube once for the video's details AND its audio formats, and reuse the answer for
+    5 minutes. get_video_info() and download_audio_fast() both need it (saves ~2.5 s per analysis).
+    Raises yt_dlp DownloadError if the video can't be read.
+    """
+    cached = _info_cache.get(video_id)
+    if cached and time.time() - cached[0] < INFO_CACHE_SECONDS:
+        return cached[1]
+    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "format": "bestaudio"}) as ydl:
+        info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+    _info_cache[video_id] = (time.time(), info)
+    return info
+
+
 def get_video_info(video_id: str) -> dict:
     """Read the title and duration from YouTube without downloading anything."""
-    url = f"https://www.youtube.com/watch?v={video_id}"
     try:
-        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
-            info = ydl.extract_info(url, download=False)
+        info = _youtube_info(video_id)
     except yt_dlp.utils.DownloadError as e:
         raise VideoUnavailableError(str(e)) from e
 
@@ -144,8 +162,7 @@ def download_audio_fast(video_id: str, out_dir: str) -> Path:
     Raises AudioDownloadError if anything is missing, so the caller can fall back.
     """
     try:
-        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "format": "bestaudio"}) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+        info = _youtube_info(video_id)
     except yt_dlp.utils.DownloadError as e:
         raise AudioDownloadError(f"Could not read the audio formats: {e}") from e
 

@@ -17,12 +17,20 @@ from backend.config import HOP_SECONDS, SAMPLE_RATE, SEGMENT_SECONDS
 from backend.model import quadrant_of, summarize
 
 
-def run_audio_analysis(video_id: str, title: str, audio, emotion_model, separator) -> dict:
-    speech, music = separator.separate(audio)
+def run_audio_analysis(video_id: str, title: str, audio, emotion_model, separator,
+                       mixed_preds=None, on_progress=None) -> dict:
+    """
+    mixed_preds: emotion of the mixed audio if already computed (phase 1), so it isn't computed twice.
+    on_progress: optional function(fraction 0..1) called while the (slow) separation runs.
+    """
+    speech, music = separator.separate(audio, on_progress=on_progress)
 
     # Emotion of the background music (main result) and of the mixed audio (for comparison).
     music_preds, music_embeddings = emotion_model.analyze(cut_segments(music), video_id=video_id)
-    mixed_preds, _ = emotion_model.analyze(cut_segments(audio), video_id=video_id)
+    if music is audio:                      # no separation: the "music" IS the mixed audio
+        mixed_preds = music_preds
+    elif mixed_preds is None:
+        mixed_preds, _ = emotion_model.analyze(cut_segments(audio), video_id=video_id)
     window_labels, music_description = emotion_model.describe(music_embeddings)
     metrics = window_metrics(audio, speech, music)
 

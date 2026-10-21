@@ -16,7 +16,7 @@ class FakeSeparator:
     """Pretend separation: 'speech' is a loud tone, 'music' a tone 20 dB quieter."""
     info = {"method": "fake"}
 
-    def separate(self, audio):
+    def separate(self, audio, on_progress=None):
         t = np.arange(len(audio)) / SAMPLE_RATE
         speech = 0.3 * np.sin(2 * np.pi * 200 * t)
         music = 0.03 * np.sin(2 * np.pi * 440 * t)

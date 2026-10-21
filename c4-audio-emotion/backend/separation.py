@@ -18,6 +18,7 @@ from backend.config import SAMPLE_RATE
 logger = logging.getLogger("c4.separation")
 
 DEMUCS_MODEL_NAME = "htdemucs"
+CHUNK_SECONDS = 30          # separate in 30 s pieces so progress can be shown
 
 
 def combine_sources(sources: dict) -> tuple[np.ndarray, np.ndarray]:
@@ -45,16 +46,26 @@ class Separator:
         self.model.eval()                                   # inference only, weights never change
         self.info = {"method": DEMUCS_MODEL_NAME}
 
-    def separate(self, audio: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def separate(self, audio: np.ndarray, on_progress=None) -> tuple[np.ndarray, np.ndarray]:
         """
         audio: mono, SAMPLE_RATE (48 kHz).
         Returns (speech, background), both mono, 48 kHz, same length as the input.
+        on_progress: optional function(fraction 0..1), called after each 30 s chunk so the page
+        can show a progress bar (separation takes ~1.5-2.5 min on a laptop CPU).
         """
         sr = self.model.samplerate                          # Demucs works at 44.1 kHz, stereo
         x = librosa.resample(audio, orig_sr=SAMPLE_RATE, target_sr=sr)
-        wav = self.torch.tensor(np.stack([x, x]))[None]     # (batch 1, 2 channels, samples)
-        with self.torch.no_grad():
-            out = self.apply_model(self.model, wav, device="cpu", progress=False, split=True, overlap=0.1)[0]
+        chunk = CHUNK_SECONDS * sr
+        parts = []
+        for start in range(0, len(x), chunk):
+            piece = x[start:start + chunk]
+            wav = self.torch.tensor(np.stack([piece, piece]))[None]     # (batch 1, 2 channels, samples)
+            with self.torch.no_grad():
+                parts.append(self.apply_model(self.model, wav, device="cpu", progress=False,
+                                              split=True, overlap=0.1)[0])
+            if on_progress:
+                on_progress(min(1.0, (start + chunk) / len(x)))
+        out = self.torch.cat(parts, dim=-1)                 # glue the chunks back together in time
 
         # out: (4 sources, 2 channels, samples) -> mono per source, back to 48 kHz, same length as input
         sources = {}
@@ -70,7 +81,7 @@ class NoSeparation:
 
     info = {"method": "none"}
 
-    def separate(self, audio: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def separate(self, audio: np.ndarray, on_progress=None) -> tuple[np.ndarray, np.ndarray]:
         return np.zeros_like(audio), audio
 
 

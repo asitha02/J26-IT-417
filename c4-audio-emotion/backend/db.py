@@ -48,6 +48,11 @@ def save(doc: dict, collection: str = AUDIO_ANALYSES_COLLECTION) -> None:
     get_collection(collection).replace_one({"video_id": doc["video_id"]}, doc, upsert=True)
 
 
+def update(video_id: str, fields: dict, collection: str = AUDIO_ANALYSES_COLLECTION) -> None:
+    """Change only some fields of a stored document (e.g. the progress of a running analysis)."""
+    get_collection(collection).update_one({"video_id": video_id}, {"$set": fields})
+
+
 def get(video_id: str, collection: str = AUDIO_ANALYSES_COLLECTION):
     """Return the stored document for this video, or None if there is none."""
     return _without_mongo_id(get_collection(collection).find_one({"video_id": video_id}))

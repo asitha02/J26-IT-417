@@ -16,7 +16,7 @@ class LoudMusicSeparator:
     """Speech and music almost equally loud for the first 20 s, then music 20 dB lower."""
     info = {"method": "fake"}
 
-    def separate(self, audio):
+    def separate(self, audio, on_progress=None):
         t = np.arange(len(audio)) / SAMPLE_RATE
         speech = 0.3 * np.sin(2 * np.pi * 200 * t)
         music = np.where(t < 20, 0.28, 0.03) * np.sin(2 * np.pi * 440 * t)

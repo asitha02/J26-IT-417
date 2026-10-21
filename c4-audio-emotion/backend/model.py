@@ -41,11 +41,11 @@ class ClapEmbedder:
         self.processor = ClapProcessor.from_pretrained(CLAP_MODEL_NAME)
         self.model = ClapModel.from_pretrained(CLAP_MODEL_NAME).eval()  # eval = inference mode
 
-    def embed(self, segments_audio: list[dict], batch_size: int = 8) -> np.ndarray:
+    def embed(self, segments_audio: list[dict], batch_size: int = 4) -> np.ndarray:
         """
         segments_audio: [{'audio': np.ndarray of 480 000 samples, ...}, ...]
         Returns an array of shape (number_of_windows, 512).
-        Windows are processed in small batches so memory use stays low.
+        Windows are processed in small batches (4 was fastest on a laptop CPU: 3.7 s for 35 windows).
         """
         embeddings = []
         for i in range(0, len(segments_audio), batch_size):
@@ -161,6 +161,9 @@ class RealEmotionModel:
         self.head.load_state_dict(checkpoint["state_dict"])        # ...and fill in the trained weights
         self.head.eval()                                           # inference mode: dropout switched off
         self.embedder = ClapEmbedder()
+        # Warm-up: PyTorch is ~3x slower on its very first run, so do that run now (at start-up)
+        # instead of during the first analysis.
+        self.embedder.embed([{"audio": np.zeros(10 * SAMPLE_RATE, dtype=np.float32)}])
         self.info = {
             "embedding_model": "clap-htsat-unfused",
             "head": checkpoint.get("head_name", "bilstm_attention_v1"),

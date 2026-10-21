@@ -7,11 +7,16 @@ C4 FastAPI backend: two parts (CLAUDE.md section 8.6).
 Start it from the c4-audio-emotion folder:
     venv\\Scripts\\python -m uvicorn backend.main:app --reload
 Then open http://localhost:8000/docs to try the endpoints.
+
+Part 1 answers in two phases: a quick "first look" on the mixed audio (~10 s, status "processing"),
+then Demucs separation in the background (~1.5 min) replaces it with the full result (status "complete").
 """
 import logging
 import tempfile
+import threading
+from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
 
@@ -35,7 +40,7 @@ from backend.mock_loader import load_c1_transcript, load_c3_sentiment, load_know
 from backend.model import get_model
 from backend.report import build_report
 from backend.schemas import AnalyzeRequest, AudioAnalysisResponse, RecommendationReport, Summary
-from backend.separation import get_separator
+from backend.separation import NoSeparation, get_separator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("c4")
@@ -44,6 +49,8 @@ app = FastAPI(title="C4 Audio Emotion API")
 # Loaded once at start-up and reused for every request (loading takes several seconds).
 emotion_model = get_model(USE_MOCK_MODEL, MODEL_PATH)
 separator = get_separator(USE_SOURCE_SEPARATION)
+separation_lock = threading.Lock()     # one Demucs run at a time
+STALE_PROCESSING_SECONDS = 600         # a 'processing' result older than this is assumed lost (e.g. server restart)
 
 
 @app.exception_handler(PyMongoError)
@@ -60,8 +67,39 @@ def health():
 
 # ---------- Part 1: Affective Audio Analysis ----------
 
+def _is_fresh(doc: dict) -> bool:
+    """A cached result is reusable if it is complete, or still being refined (started < 10 min ago)."""
+    if doc.get("status") == "complete":
+        return True
+    if doc.get("status") == "processing":
+        age = datetime.now(timezone.utc) - datetime.fromisoformat(doc["created_at"])
+        return age.total_seconds() < STALE_PROCESSING_SECONDS
+    return False                               # "failed": try again
+
+
+def _refine_in_background(video_id: str, title: str, audio, created_at: str, mixed_preds) -> None:
+    """
+    Phase 2 (runs after the response was sent): separate voice and music with Demucs (~1.5 min on CPU),
+    redo the analysis on the music track and replace the quick result. One separation at a time,
+    so two requests don't fight over the CPU.
+    """
+    try:
+        report_progress = lambda fraction: db.update(video_id, {"progress": round(fraction, 2)})
+        with separation_lock:
+            analysis = run_audio_analysis(video_id, title, audio, emotion_model, separator,
+                                          mixed_preds=mixed_preds, on_progress=report_progress)
+        analysis["created_at"] = created_at        # keep the original request time
+        db.save(analysis, AUDIO_ANALYSES_COLLECTION)
+        logger.info("Refined analysis done for %s (%d problems)", video_id, len(analysis["audio_problems"]))
+    except Exception as e:                          # log it and tell the UI instead of failing silently
+        logger.exception("Background separation failed for %s", video_id)
+        doc = db.get(video_id, AUDIO_ANALYSES_COLLECTION) or {}
+        doc.update({"status": "failed", "error": f"Separating voice and music failed: {e}"})
+        db.save(doc, AUDIO_ANALYSES_COLLECTION)
+
+
 @app.post("/audio/analyze", response_model=AudioAnalysisResponse)
-def audio_analyze(request: AnalyzeRequest):
+def audio_analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     # 1. Validate the URL and get the video id.
     video_id = extract_video_id(request.youtube_url)
     if video_id is None:
@@ -70,8 +108,8 @@ def audio_analyze(request: AnalyzeRequest):
     # 2. Reuse the saved result unless the user asked to re-analyse.
     if not request.force_reanalyze:
         cached = db.get(video_id, AUDIO_ANALYSES_COLLECTION)
-        if cached is not None:
-            logger.info("Returning cached audio analysis for %s", video_id)
+        if cached is not None and _is_fresh(cached):
+            logger.info("Returning cached audio analysis for %s (%s)", video_id, cached["status"])
             return cached
 
     # 3. Read title and duration from YouTube.
@@ -89,13 +127,20 @@ def audio_analyze(request: AnalyzeRequest):
         logger.error("Audio download failed for %s: %s", video_id, e)
         raise HTTPException(status_code=502, detail=f"Could not download the audio: {e}")
 
-    # 5. Separate, predict emotion, measure problems, describe the music (backend/audio_analysis.py).
-    analysis = run_audio_analysis(video_id, info["title"], audio, emotion_model, separator)
+    # 5. Phase 1, "first look" (~10 s): analyse the mixed audio without separation and answer straight away.
+    analysis = run_audio_analysis(video_id, info["title"], audio, emotion_model, NoSeparation())
+    if USE_SOURCE_SEPARATION:
+        # Phase 2 runs in the background; the page polls GET /audio/analyses/{id} until status is "complete".
+        analysis["status"] = "processing"
+        analysis["progress"] = 0.0
+        analysis["separation"]["method"] = "pending"
+        mixed_preds = [{k: s[k] for k in ("start_s", "end_s", "valence", "arousal")} for s in analysis["segments"]]
+        background_tasks.add_task(_refine_in_background, video_id, info["title"], audio,
+                                  analysis["created_at"], mixed_preds)
 
     # 6. Save (replaces any older analysis of the same video) and return.
     db.save(analysis, AUDIO_ANALYSES_COLLECTION)
-    logger.info("Audio analysis done for %s (%d windows, separation=%s, %d problems)", video_id,
-                len(analysis["segments"]), analysis["separation"]["method"], len(analysis["audio_problems"]))
+    logger.info("First look for %s ready (%d windows, status=%s)", video_id, len(analysis["segments"]), analysis["status"])
     return db.get(video_id, AUDIO_ANALYSES_COLLECTION)
 
 
@@ -120,6 +165,9 @@ def create_recommendations(video_id: str):
     analysis = db.get(video_id, AUDIO_ANALYSES_COLLECTION)
     if analysis is None:
         raise HTTPException(status_code=404, detail="Run Part 1 (audio analysis) for this video first.")
+    if analysis.get("status") != "complete":
+        raise HTTPException(status_code=409, detail="Part 1 is still separating voice and music for this video. "
+                                                    "Please try again in a minute.")
     report = build_report(analysis, load_c1_transcript(video_id), load_knowledge_gaps(video_id),
                           load_c3_sentiment(video_id))
     db.save(report, RECOMMENDATIONS_COLLECTION)
