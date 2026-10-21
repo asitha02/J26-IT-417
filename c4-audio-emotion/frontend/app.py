@@ -12,8 +12,11 @@ Anything to remember between runs (the current results) is kept in st.session_st
 """
 import streamlit as st
 
-st.set_page_config(page_title="C4 Audio Emotion", layout="wide")
+from style import apply_style
+
+st.set_page_config(page_title="C4 Audio Emotion", page_icon="🎧", layout="wide")
 st.session_state.setdefault("backend_url", "http://localhost:8000")
+apply_style()     # colours, cards and music-note loading animations (frontend/style.py)
 
 pages = st.navigation([
     st.Page("audio_analysis.py", title="1 · Audio Analysis", icon="🎵", default=True),

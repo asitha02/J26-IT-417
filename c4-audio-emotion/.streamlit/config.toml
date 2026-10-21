@@ -1,0 +1,27 @@
+# Streamlit look for the C4 app: a "music studio" theme in light and dark mode.
+# Streamlit reads this file when it is started from the c4-audio-emotion folder.
+# Users switch light/dark in the app menu (top-right ⋮ > Settings).
+
+[theme]
+baseRadius = "large"
+buttonRadius = "full"
+headingFontWeights = [800, 700, 700, 600, 600, 600]
+showWidgetBorder = true
+
+[theme.light]
+primaryColor = "#7C3AED"
+backgroundColor = "#FAF7FF"
+secondaryBackgroundColor = "#F0E9FF"
+textColor = "#1E1B4B"
+borderColor = "#DCCDFE"
+linkColor = "#6D28D9"
+chartCategoricalColors = ["#7C3AED", "#06B6D4", "#EC4899", "#F59E0B", "#10B981", "#6366F1"]
+
+[theme.dark]
+primaryColor = "#A78BFA"
+backgroundColor = "#0B0A1A"
+secondaryBackgroundColor = "#17143A"
+textColor = "#EDE9FE"
+borderColor = "#2F2A66"
+linkColor = "#67E8F9"
+chartCategoricalColors = ["#A78BFA", "#22D3EE", "#F472B6", "#FBBF24", "#34D399", "#818CF8"]
