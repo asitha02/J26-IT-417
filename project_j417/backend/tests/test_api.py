@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 
 from app.config import AsrConfig, Settings
 from app.main import create_app
-from app.selection.ranker import Embedder
 from app.transcription import service
 from app.transcription.downloader import AudioResult, DownloadError, validate_url
 from app.transcription.repository import transcript_key
@@ -48,6 +47,15 @@ class FakeRepo:
         self.transcripts[tid] = {**doc, "_id": tid}
         return tid
 
+    async def list_transcripts(self, source_ids=None):
+        return [v for v in self.transcripts.values() if not source_ids or v["source_id"] in source_ids]
+
+    async def delete_video(self, source_id):
+        gone = [k for k, v in self.transcripts.items() if v["source_id"] == source_id]
+        for k in gone:
+            del self.transcripts[k]
+        return {"transcripts": len(gone), "jobs": 0}
+
 
 class FakeTranscriber:
     cfg = AsrConfig("fake-model", "cpu", "int8", 8, 5)
@@ -81,9 +89,9 @@ def client(tmp_path, monkeypatch):
     FakeTranscriber.calls = 0
     app = create_app()
     app.state.repo, app.state.transcriber = FakeRepo(), FakeTranscriber()
-    app.state.embedder = Embedder(None)  # no model download in tests
     app.dependency_overrides[__import__("app.config", fromlist=["x"]).get_settings] = lambda: settings
     with TestClient(app) as c:
+        c.settings = settings  # lets a test change a limit
         yield c, tmp_path
 
 
@@ -127,3 +135,35 @@ def test_url_validation():
     for bad in ["ftp://x.com/a", "http://localhost/a", "http://127.0.0.1/a", "not a url"]:
         with pytest.raises(ValueError):
             validate_url(bad)
+
+
+# ------------------------------------------------------------------ list, delete and clean videos
+def test_list_and_delete_a_video(client):
+    c, tmp = client
+    c.post("/api/transcripts", json={"url": YT})
+    videos = {v["source_id"]: v for v in c.get("/api/videos").json()}
+    assert videos["dQw4w9WgXcQ"]["segments"] == 2 and videos["dQw4w9WgXcQ"]["title"] == "Test video"
+
+    assert (tmp / "transcripts" / "dQw4w9WgXcQ.json").exists()
+    gone = c.delete("/api/videos/dQw4w9WgXcQ")
+    assert gone.status_code == 200 and gone.json()["transcripts_removed"] == 1
+    assert not (tmp / "transcripts" / "dQw4w9WgXcQ.json").exists()
+    assert c.get("/api/videos").json() == []
+
+    assert c.delete("/api/videos/dQw4w9WgXcQ").status_code == 404   # already gone
+    assert c.delete("/api/videos/..hidden").status_code == 400       # not a valid id
+
+
+def test_each_video_has_its_own_cleaned_json(client):
+    c, tmp = client
+    c.post("/api/transcripts", json={"url": YT})
+    d = c.get("/api/videos/dQw4w9WgXcQ/download")
+    assert d.status_code == 200 and "dQw4w9WgXcQ-cleaned.json" in d.headers["content-disposition"]
+    cleaned = d.json()
+    assert [v["source_id"] for v in cleaned["videos"]] == ["dQw4w9WgXcQ"]  # only this video
+    assert cleaned["summary"]["segments_raw"] == 2 and cleaned["cleaning"]["trained_models_in_use"] == {
+        "sentences": False, "words": False, "duplicates": False}  # nothing trained yet: the rules are used
+    # the fake transcript's two 2-word segments are too short to keep (the cleaner needs 3+ words)
+    assert cleaned["videos"][0]["quality"]["removed"]["too_short"] == 2
+    assert c.get("/api/videos/nothere/download").status_code == 404
+    assert c.get("/api/videos/..hidden/download").status_code == 400

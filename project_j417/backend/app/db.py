@@ -14,7 +14,8 @@ _client: AsyncMongoClient | None = None
 
 async def connect(settings: Settings):
     global _client
-    _client = AsyncMongoClient(settings.mongodb_uri, serverSelectionTimeoutMS=5000)
+    # 15 s: a slow or unstable connection to a cloud cluster needs more than the 5 s default.
+    _client = AsyncMongoClient(settings.mongodb_uri, serverSelectionTimeoutMS=15000)
     return _client[settings.mongodb_db]
 
 

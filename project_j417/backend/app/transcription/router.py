@@ -11,7 +11,6 @@ from app.transcription.transcriber import Transcriber
 
 router = APIRouter(prefix="/api/transcripts", tags=["transcription"])
 
-
 def get_repo(request: Request) -> Repository:
     return request.app.state.repo
 

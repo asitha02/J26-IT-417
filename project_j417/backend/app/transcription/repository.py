@@ -17,8 +17,6 @@ class Repository:
     def __init__(self, db):
         self.jobs = db["transcription_jobs"]
         self.transcripts = db["transcripts"]
-        self.embeddings = db["window_embeddings"]
-        self.labels = db["relevance_labels"]
 
     async def ensure_indexes(self) -> None:
         await self.jobs.create_index([("created_at", -1)])
@@ -76,27 +74,14 @@ class Repository:
         query = {"source_id": {"$in": source_ids}} if source_ids else {}
         return [doc async for doc in self.transcripts.find(query)]
 
-    # ---- relevance labels (ranker training data) ----
-    async def upsert_label(self, doc: dict) -> None:
-        await self.labels.replace_one({"_id": doc["_id"]}, doc, upsert=True)
-
-    async def delete_label(self, label_id: str) -> None:
-        await self.labels.delete_one({"_id": label_id})
-
-    async def list_labels(self) -> list[dict]:
-        return [doc async for doc in self.labels.find()]
-
-    # ---- stored window embeddings (segment selection) ----
-    async def get_embeddings(self, key: str) -> dict | None:
-        return await self.embeddings.find_one({"_id": key})
-
-    async def save_embeddings(self, key: str, sig: str, vectors: list[list[float]]) -> None:
-        await self.embeddings.replace_one(
-            {"_id": key}, {"_id": key, "sig": sig, "vectors": vectors}, upsert=True
-        )
-
+    async def delete_video(self, source_id: str) -> dict[str, int]:
+        """Remove everything stored for a video; returns how many documents of each kind were removed."""
+        transcripts = await self.transcripts.delete_many({"source_id": source_id})
+        jobs = await self.jobs.delete_many({"source_id": source_id})
+        return {"transcripts": transcripts.deleted_count, "jobs": jobs.deleted_count}
     async def save_transcript(self, doc: dict) -> str:
         tid = transcript_key(doc["source_id"], doc["asr_model"])
         doc = {**doc, "_id": tid}
         await self.transcripts.replace_one({"_id": tid}, doc, upsert=True)
         return tid
+

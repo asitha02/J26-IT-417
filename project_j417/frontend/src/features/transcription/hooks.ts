@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createJob, getJob, getTranscript } from "./api";
+import { createJob, getJob } from "./api";
 
 export const useCreateJob = () => useMutation({ mutationFn: createJob });
 
@@ -13,14 +13,5 @@ export function useJob(jobId: string | null) {
       const status = query.state.data?.status;
       return status === "done" || status === "failed" ? false : 1500;
     },
-  });
-}
-
-export function useTranscript(jobId: string | null, ready: boolean) {
-  return useQuery({
-    queryKey: ["transcript", jobId],
-    queryFn: () => getTranscript(jobId!),
-    enabled: !!jobId && ready,
-    staleTime: Infinity,
   });
 }

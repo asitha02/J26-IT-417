@@ -1,72 +1,41 @@
-import { useState } from "react";
-import SegmentFinder from "./features/selection/SegmentFinder";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import CleaningModels from "./features/cleaning/CleaningModels";
+import AddVideo from "./features/transcription/AddVideo";
 import JobStatus from "./features/transcription/JobStatus";
-import TranscriptViewer from "./features/transcription/TranscriptViewer";
-import UrlForm from "./features/transcription/UrlForm";
-import { useCreateJob, useJob, useTranscript } from "./features/transcription/hooks";
-
-type Tab = "transcribe" | "segments";
-
-const TABS: [Tab, string][] = [
-  ["transcribe", "Transcribe"],
-  ["segments", "Find best segments"],
-];
+import { useJob } from "./features/transcription/hooks";
+import VideoList from "./features/videos/VideoList";
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("transcribe");
   const [jobId, setJobId] = useState<string | null>(null);
-  const create = useCreateJob();
+  const queryClient = useQueryClient();
   const job = useJob(jobId);
-  const transcript = useTranscript(jobId, job.data?.status === "done");
+  const status = job.data?.status;
+  const active = status !== undefined && status !== "done" && status !== "failed";
 
-  const active = job.data && job.data.status !== "done" && job.data.status !== "failed";
+  // A finished job adds a video to the list and to the cleaned JSON.
+  useEffect(() => {
+    if (status === "done") {
+      queryClient.invalidateQueries({ queryKey: ["videos"] });
+      queryClient.invalidateQueries({ queryKey: ["cleaning-summary"] });
+    }
+  }, [status, queryClient]);
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-10">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Cross-Video Knowledge Extraction</h1>
+        <h1 className="text-2xl font-bold tracking-tight">YouTube transcripts → cleaned JSON</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {tab === "transcribe"
-            ? "Paste a video or podcast link to get a timestamped transcript as JSON."
-            : "Rank the most relevant clips for a topic or audience across all transcribed videos."}
+          Paste a YouTube link to get its timestamped transcript as JSON. Trained models then remove the duplicates and error
+          words.
         </p>
-        <nav className="mt-4 flex gap-1 border-b border-slate-200" role="tablist">
-          {TABS.map(([id, label]) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => setTab(id)}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
-                tab === id ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
       </header>
 
-      {tab === "transcribe" ? (
-        <>
-          <UrlForm
-            busy={create.isPending || !!active}
-            error={create.error?.message}
-            onSubmit={(values) =>
-              create.mutate(values, {
-                onSuccess: (j) => setJobId(j.job_id),
-              })
-            }
-          />
-
-          {job.data && <JobStatus job={job.data} />}
-          {job.error && <p className="text-sm text-red-700">{job.error.message}</p>}
-
-          {jobId && transcript.data && <TranscriptViewer jobId={jobId} transcript={transcript.data} />}
-        </>
-      ) : (
-        <SegmentFinder />
-      )}
+      <AddVideo busy={active} onJob={(j) => setJobId(j.job_id)} />
+      {job.data && <JobStatus job={job.data} />}
+      {job.error && <p className="text-sm text-red-700">{job.error.message}</p>}
+      <VideoList />
+      <CleaningModels />
     </main>
   );
 }
