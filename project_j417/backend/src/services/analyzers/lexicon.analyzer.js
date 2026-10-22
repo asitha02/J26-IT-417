@@ -12,7 +12,8 @@ const NEGATIVE = [
   'නරකයි', 'අවුල්', 'එපා', 'narakai', 'awul', 'epa', 'bore',
 ];
 const EMOTION_TERMS = {
-  Confusion: ["don't understand", "didn't understand", 'confus', 'unclear', 'not clear', 'lost me', 'what do you mean',
+  Confusion: ["don't understand", "didn't understand", 'do not understand', 'did not understand', 'dont understand',
+    "can't understand", 'cannot understand', 'cant understand', "doesn't make sense", 'does not make sense', 'confus', 'unclear', 'not clear', 'lost me', 'what do you mean',
     'තේරුණේ නැහැ', 'තේරෙන්නේ නෑ', 'තේරුනේ නෑ', 'terenne na', 'therenne na', 'terune na', 'awul'],
   Curiosity: ['how', 'why', 'what if', 'can you', 'could you', 'please explain', 'curious', 'wonder', 'any resource',
     'කොහොමද', 'ඇයි', 'මොකක්ද', 'kohomada', 'mokakda'],
@@ -30,7 +31,7 @@ const hit = (text, term) =>
 const count = (text, terms) => terms.filter((t) => hit(text, t)).length;
 
 function analyzeOne(item) {
-  const text = item.text.toLowerCase();
+  const text = item.text.toLowerCase().replace(/[‘’]/g, "'");
   const pos = count(text, POSITIVE);
   const neg = count(text, NEGATIVE);
   const emotions = Object.entries(EMOTION_TERMS)
