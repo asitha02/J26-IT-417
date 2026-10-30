@@ -10,6 +10,7 @@ const TYPE_CLASS: Record<RecommendationType, string> = {
 const ANALYZER_LABELS: Record<string, string> = {
   llm: 'Claude',
   lexicon: 'Keyword rules (offline)',
+  bert: 'XLM-RoBERTa',
 };
 
 export function ResultView({ result, title }: { result: AnalysisResponse; title?: string }) {
