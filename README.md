@@ -13,6 +13,9 @@ Analyses YouTube video comments (English, Sinhala, Singlish) for sentiment, emot
 | `ml_service/` | FastAPI service running a multilingual RoBERTa sentiment model |
 | `extension/` | Chrome extension that opens the dashboard for the current YouTube video |
 
+### How it works
+Fetch comments and chapters from YouTube, clean and anonymise them, classify each comment (sentiment, emotions, question), link comments to video topics, compare with retention and audio data from the other components, and produce evidence-based recommendations (Clarification, Content Expansion, Content Structuring, Audio Alignment) and a viewer guide. Detection rules, API list and limitations: [project_j417/FEEDBACK_MINING_README.md](project_j417/FEEDBACK_MINING_README.md)
+
 ### Run
 Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env`, fill in the values (never commit `.env`), then:
 
