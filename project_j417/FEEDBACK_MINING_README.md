@@ -1,4 +1,4 @@
-# Component 3 – Audience feedback mining
+# Component 3 – Audience feedback mining & content improvement recommendation
 
 Reads the comments on a YouTube video (English, Sinhala, Singlish), works out how viewers reacted to each part of the video, and gives the creator evidence-based recommendations plus a short guide for future viewers.
 
