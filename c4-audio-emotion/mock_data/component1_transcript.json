@@ -1,0 +1,49 @@
+{
+  "_note": "DUMMY DATA standing in for Component 1 (transcript + topic extraction). Not a real transcript. Each section has a time range, a topic and a content type (hook / explanation / example / summary). 'default' is used for any video not listed.",
+  "mocks": [
+    {
+      "video_id": "e-P5IFTqB98",
+      "sections": [
+        { "start_s": 0,   "end_s": 20,  "topic": "what happens when a giant star dies", "content_type": "hook" },
+        { "start_s": 20,  "end_s": 75,  "topic": "how black holes form",               "content_type": "explanation" },
+        { "start_s": 75,  "end_s": 120, "topic": "the event horizon",                  "content_type": "explanation" },
+        { "start_s": 120, "end_s": 165, "topic": "spaghettification",                  "content_type": "example" },
+        { "start_s": 165, "end_s": 180, "topic": "recap",                              "content_type": "summary" }
+      ]
+    },
+    {
+      "video_id": "xCUKEqa8MKQ",
+      "sections": [
+        { "start_s": 0,   "end_s": 25,  "topic": "where stars come from",           "content_type": "hook" },
+        { "start_s": 25,  "end_s": 70,  "topic": "molecular clouds",                "content_type": "explanation" },
+        { "start_s": 70,  "end_s": 120, "topic": "gravity pulls the gas together",  "content_type": "explanation" },
+        { "start_s": 120, "end_s": 165, "topic": "nuclear fusion in stellar cores", "content_type": "explanation" },
+        { "start_s": 165, "end_s": 180, "topic": "a star is born",                  "content_type": "summary" }
+      ]
+    },
+    {
+      "video_id": "vbZKydfBUUI",
+      "sections": [
+        { "start_s": 0,   "end_s": 30,  "topic": "the life cycle of stars",  "content_type": "hook" },
+        { "start_s": 30,  "end_s": 120, "topic": "stellar nurseries",        "content_type": "explanation" },
+        { "start_s": 120, "end_s": 165, "topic": "Hawking radiation",        "content_type": "explanation" },
+        { "start_s": 165, "end_s": 180, "topic": "what comes next",          "content_type": "summary" }
+      ]
+    },
+    {
+      "video_id": "jNQXAC9IVRw",
+      "sections": [
+        { "start_s": 0, "end_s": 19, "topic": "elephants at the zoo", "content_type": "example" }
+      ]
+    },
+    {
+      "video_id": "default",
+      "sections": [
+        { "start_s": 0,   "end_s": 20,  "topic": "introduction",   "content_type": "hook" },
+        { "start_s": 20,  "end_s": 80,  "topic": "main concept",   "content_type": "explanation" },
+        { "start_s": 80,  "end_s": 140, "topic": "deeper details", "content_type": "explanation" },
+        { "start_s": 140, "end_s": 180, "topic": "recap",          "content_type": "summary" }
+      ]
+    }
+  ]
+}
