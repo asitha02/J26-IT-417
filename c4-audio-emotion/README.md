@@ -1,7 +1,5 @@
 # C4 — Audio Emotion Analysis + Prescriptive Recommendations
-
-Component 4 (C4) of the group research project *IT4010, SLIIT Faculty of Computing*, which analyses educational
-(science-themed) YouTube videos and podcasts with AI. C4 looks at the **audio itself**: the background music, how
+Analyzes YouTube videos and podcasts with AI. C4 looks at the **audio itself**: the background music, how
 loud it is under the narration, and what mood it creates, and then turns that into advice for the creator.
 
 **Research gap:** existing tools (YouTube chapters, transcripts, AI summarisers) never analyse the audio (music, mood,
