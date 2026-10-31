@@ -2,7 +2,7 @@
 
 Research project. This repo's `project_j417/` folder holds the code.
 
-## Component 3 – Audience feedback mining
+## Component 3 – Audience feedback mining evidence-based improvement recommendations​
 
 Analyses YouTube video comments (English, Sinhala, Singlish) for sentiment, emotions and questions, and turns them into content-improvement recommendations.
 
