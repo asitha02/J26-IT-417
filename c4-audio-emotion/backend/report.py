@@ -4,12 +4,14 @@ from the Part 1 result and the other components' outputs (dummy for now):
 
   descriptive   section_summaries  "what happened" in each C1 transcript section
   prescriptive  recommendations    "what to change", ranked, with evidence and a link (fusion.py)
+  prescriptive  music_suggestions  free-to-use background tracks that fit the video (music_suggestions.py)
   validation    validation         do the flagged sections match viewer complaints? (validation.py)
 """
 from datetime import datetime, timezone
 
 from backend.config import COMMENT_WINDOW_S, MUSIC_UNDER_SPEECH_LIMIT_DB, NEGATIVE_SENTIMENT
 from backend.fusion import generate_recommendations, mmss
+from backend.music_suggestions import suggest_music
 from backend.validation import validate
 
 # Plain-language names for the four areas of the valence-arousal map.
@@ -86,6 +88,7 @@ def build_report(analysis: dict, c1: dict, c2: dict, c3: dict) -> dict:
         },
         "section_summaries": [summarize_section(sec, analysis, c2, c3) for sec in c1.get("sections", [])],
         "recommendations": recommendations,
+        "music_suggestions": suggest_music(c1, recommendations),   # 3-5 free-to-use tracks that fit
         "validation": validate(recommendations, c3, analysis["analyzed_seconds"]),
         "status": "complete",
         "created_at": datetime.now(timezone.utc).isoformat(),

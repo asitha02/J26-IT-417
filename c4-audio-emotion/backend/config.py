@@ -66,6 +66,11 @@ CLIPPING_PCT = 0.1               # more than 0.1 % of samples at maximum level =
 SILENCE_DB = -50                 # whole mix quieter than this = silence ("dead air")
 SILENCE_MIN_DURATION_S = 10      # report silence only if it lasts this long
 
+# --- Background music suggestions (Part 2, backend/music_suggestions.py) ---
+# A curated list of free-to-use tracks (Kevin MacLeod CC BY 4.0 + Pixabay Content License).
+MUSIC_CATALOG_PATH = PROJECT_ROOT / "backend" / "music_catalog.json"
+MUSIC_SUGGESTION_COUNT = 5   # music taste is subjective, so offer several options, not one "right" track
+
 # --- Confidence scoring (0..1) ---
 BASE_CONFIDENCE = 0.5        # one source of evidence (e.g. audio only)
 CORROBORATION_BONUS = 0.2    # added for each independent signal that agrees (comment, gap)

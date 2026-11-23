@@ -306,3 +306,16 @@ One entry per day: what was done, what's next, blockers.
 - Backend URL field removed from the sidebar (address now from `C4_BACKEND_URL`, default localhost:8000); http://localhost:8000 redirects to the API docs.
 - Delete saved analyses: 🗑 per video with a confirmation, and "Delete all analyses"; `DELETE /audio/analyses/{id}` and
   `DELETE /audio/analyses` remove C4's own documents only (analysis + recommendations). Tested via the API and the page.
+
+## 23 Nov 2026: background music suggestions (Page 2)
+
+**Done**
+- `backend/music_catalog.json`: 23 free-to-use tracks (16 Kevin MacLeod CC BY 4.0, 7 Pixabay Content License), links and licences checked.
+- `backend/music_suggestions.py`: target mood from C1 section types + found problems; tracks ranked by distance on the
+  valence–arousal map (moods from their mood tags); 5 suggestions, at least one per source, with "why", "best for" and credit line.
+- New `music_suggestions` field in the Part 2 report (CLAUDE.md 8.6, optional so older saved reports still load) and a
+  "Suggested background music" section on the recommendations page. `tests/test_music_suggestions.py`; 85 tests pass.
+
+**Next**
+- Measure the catalog tracks with my own model instead of estimating moods from tags.
+

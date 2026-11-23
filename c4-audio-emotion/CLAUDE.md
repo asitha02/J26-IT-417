@@ -285,7 +285,8 @@ Create 3 variants (negative, mixed, positive) so the UI and rules can be demoed 
   `inputs` = `{ "audio_analysis_created_at", "c1_input", "c2_input", "c3_input" }` (dummy ones carry `"mock": true`),
   `section_summaries` (descriptive, one per C1 section),
   `recommendations` (8.1 recommendation shape **plus** `"link"`: YouTube URL with `&t=<start>s`),
-  `validation` = `{ "flagged_segments", "agreeing_segments", "agreement", "random_baseline", "lift", "negative_comments", "comments_explained", "explanation", "mock_data": true }`
+  `validation` = `{ "flagged_segments", "agreeing_segments", "agreement", "random_baseline", "lift", "negative_comments", "comments_explained", "explanation", "mock_data": true }`,
+  `music_suggestions` (added 23 Nov 2026, optional for older reports) = `{ "target_valence", "target_arousal", "target_mood", "reasons": [], "tracks": [ { "title", "artist", "source", "license", "attribution_required", "credit", "url", "mood_tags", "valence", "arousal", "match", "best_for", "why" } ], "mixing_tip", "catalog_size", "note" }` (3–5 free-to-use tracks from `backend/music_catalog.json`)
 
 **Dummy C1 input**: `mock_data/component1_transcript.json`:
 `{ "video_id", "sections": [ { "start_s", "end_s", "topic", "content_type": "hook|explanation|example|summary" } ] }`

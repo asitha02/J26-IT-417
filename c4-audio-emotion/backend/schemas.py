@@ -133,6 +133,33 @@ class Validation(BaseModel):
     mock_data: bool
 
 
+class MusicTrack(BaseModel):
+    title: str
+    artist: str
+    source: str                     # incompetech / pixabay
+    license: str                    # "CC BY 4.0" / "Pixabay Content License"
+    attribution_required: bool
+    credit: str                     # text for the video description ("" if no credit needed)
+    url: str
+    mood_tags: list[str]
+    valence: float                  # estimated from the mood tags, [-1, 1]
+    arousal: float
+    match: float                    # 0..1, closeness to the target mood
+    best_for: str
+    why: str
+
+
+class MusicSuggestions(BaseModel):
+    target_valence: float
+    target_arousal: float
+    target_mood: str
+    reasons: list[str]
+    tracks: list[MusicTrack]
+    mixing_tip: str
+    catalog_size: int
+    note: str
+
+
 class RecommendationReport(BaseModel):
     video_id: str
     youtube_url: str
@@ -140,6 +167,8 @@ class RecommendationReport(BaseModel):
     inputs: dict
     section_summaries: list[SectionSummary]
     recommendations: list[Recommendation]
+    # Optional: reports saved before this field was added (Nov 2026) don't have it.
+    music_suggestions: Optional[MusicSuggestions] = None
     validation: Validation
     status: str
     created_at: str

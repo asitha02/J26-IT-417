@@ -267,6 +267,28 @@ C1 (transcript sections), C2 (knowledge gaps) and C3 (audience feedback) belong 
 
 ---
 
+## 17b. Background music suggestions (added 23 Nov 2026)
+
+**What:** the recommendations page suggests 5 free-to-use background tracks that fit the video (`backend/music_suggestions.py`).
+
+- **Why several tracks, not one:** music taste is subjective. The rules choose the right *mood*; the creator chooses the track.
+- **Why "free to use", not "copyright-free":** these tracks are still copyrighted; their licences allow free use.
+  Kevin MacLeod (incompetech.com, **CC BY 4.0**) needs a credit line in the video description, which the page shows ready to copy.
+  Pixabay Music (**Pixabay Content License**) needs no credit, but some Pixabay tracks are registered with YouTube Content ID,
+  so the creator should check the track page before monetising. Both sources are mixed and at least one of each is always shown.
+- **Why a curated catalog (23 tracks in `backend/music_catalog.json`), not a live music API:** no API key or internet at analysis
+  time, every licence checked by hand, reproducible results.
+- **How a track gets a mood:** its published mood tags (Kevin MacLeod's own "feel" tags; for Pixabay, words from the track
+  description) are mapped onto the valence–arousal map with one fixed table (`TAG_MOOD`, e.g. Calming = pleasant + low energy),
+  and averaged. No hand-picked numbers per track.
+- **How the target mood is chosen:** the C1 section types, weighted by length (hook = lively, explanation = calm, example = a
+  little movement, summary = settled), then shifted by the problems found (low energy → livelier; tense / intense over hard
+  content → calmer; music too loud → softer). Tracks are ranked by distance to the target; "match" = 1 − distance / largest distance.
+- **Limitation:** track moods are *estimated from tags*, not measured by my emotion model (Pixabay blocks automated downloads).
+  Future work: run every catalog track through the same CLAP + BiLSTM pipeline and use the measured valence/arousal.
+
+---
+
 ## 18. Known limitations (honest)
 
 1. **Domain mismatch:** DEAM is music only; science videos mix speech + music. Separation helps, but the background track still contains residual voice and sound effects.
@@ -279,6 +301,10 @@ C1 (transcript sections), C2 (knowledge gaps) and C3 (audience feedback) belong 
 8. **Dummy C1, C2, C3 data:** the fusion and validation logic are real; their inputs are placeholders, so the validation numbers demonstrate the method only.
 9. **CLAP music descriptions** are zero-shot and not checked against human labels.
 10. **Only the first 3 minutes** of each video are analysed.
+
+---
+
+11. **Music suggestions** use moods estimated from tags, not measured audio, and a small catalog (23 tracks).
 
 ---
 

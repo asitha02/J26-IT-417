@@ -4,7 +4,7 @@ Fuses the Part 1 audio analysis with the outputs of C1 (transcript sections), C2
 and C3 (audience comments). Those three are DUMMY data until the components are connected.
 
 Layout: plain-language summary -> donut charts -> TOP PRIORITY card -> checklist -> all cards
-        -> section-by-section details -> validation.
+        -> suggested background music -> section-by-section details -> validation.
 """
 import html
 import json
@@ -174,6 +174,33 @@ def show_all_cards(report, analysis):
                 st.markdown(f"[▶ Watch this moment on YouTube]({r['link']})")
 
 
+# ---------- 3b. background music suggestions ----------
+
+def show_music_suggestions(report):
+    m = report.get("music_suggestions")
+    if not m:   # reports saved before this feature: click "Generate recommendations" again
+        st.info("🎵 Click **Generate recommendations** again to get background music suggestions for this video.")
+        return
+    st.subheader("🎵 Suggested background music (free to use)")
+    st.markdown(f"Target mood: **{m['target_mood']}** (valence {m['target_valence']:+.2f}, "
+                f"energy {m['target_arousal']:+.2f}). Music taste is personal, so pick the one you like best.")
+    for reason in m["reasons"]:
+        st.write(f"- {reason}")
+    for i, t in enumerate(m["tracks"]):
+        with st.container(key=f"card-music-{i}"):
+            a, b = st.columns([4, 1])
+            a.markdown(f"**{t['title']}** · {t['artist']}  \n{t['why']}")
+            b.metric("Match", f"{t['match']:.0%}")
+            credit = "credit required" if t["attribution_required"] else "no credit needed"
+            st.caption(f"📜 {t['license']} ({credit}) · tags: {', '.join(t['mood_tags'])}")
+            st.markdown(f"[🎧 Listen and download]({t['url']})")
+            if t["credit"]:
+                with st.expander("Credit line to paste into your video description"):
+                    st.code(t["credit"], language=None)
+    st.caption(f"🔊 {m['mixing_tip']}")
+    st.caption(f"ℹ️ {m['note']} Chosen from a curated list of {m['catalog_size']} tracks.")
+
+
 # ---------- 4. descriptive details + validation ----------
 
 def show_sections(report, analysis):
@@ -256,6 +283,7 @@ if report and report["video_id"] == video_id:
     show_top_priority(report, analysis)
     show_checklist(report, analysis)
     show_all_cards(report, analysis)
+    show_music_suggestions(report)
     show_sections(report, analysis)
     show_validation(report)
     show_inputs(report)

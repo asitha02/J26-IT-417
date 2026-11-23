@@ -34,6 +34,7 @@ def test_report_matches_the_contract_and_is_marked_dummy():
     RecommendationReport(**report)                                    # raises if a field is missing or wrong
     assert all(report["inputs"][k]["mock"] for k in ("c1_input", "c2_input", "c3_input"))
     assert report["validation"]["mock_data"] is True
+    assert 3 <= len(report["music_suggestions"]["tracks"]) <= 5
 
 
 def test_one_summary_per_transcript_section():
